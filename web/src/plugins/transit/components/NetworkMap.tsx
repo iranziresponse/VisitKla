@@ -1,12 +1,19 @@
 import { useEffect, useRef } from "react";
-import maplibregl, { type Map as MlMap, type StyleSpecification } from "maplibre-gl";
+import maplibregl, { type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { lineBounds, network, networkBounds, stopByIndex } from "../lib/network";
+import { lineBounds, network, stopByIndex } from "../lib/network";
+// Read-only import of the classic app's photoreal basemap builder — the
+// exact same satellite+3D-buildings style the world/navigation maps use.
+import { buildRideStyle } from "../../../lib/rideStyle";
 import "./NetworkMap.css";
 
 const TAXI_COLOR = "#ff6b00";
 const BUS_COLOR = "#38bdf8";
-const BASEMAP = "https://tiles.openfreemap.org/styles/liberty";
+
+/** Same tilted "world view" camera as the classic app's landing map. */
+const KAMPALA_CENTER: [number, number] = [32.5825, 0.3476];
+const PITCH = 55;
+const BEARING = -12;
 
 /** Camera target; `seq` lets the same target retrigger a fly. */
 export interface FocusTarget {
@@ -48,9 +55,10 @@ function buildStopFeatures(): GeoJSON.Feature[] {
 }
 
 /**
- * The whole matatu + bus network on one map. Deliberately dumb: every
- * interaction lands in the two callbacks and the cards live outside —
- * this component only knows how to draw and highlight.
+ * The whole matatu + bus network on one map, on the same photoreal world
+ * as the classic app. Deliberately dumb: every interaction lands in the
+ * two callbacks and the cards live outside — this component only knows
+ * how to draw and highlight.
  */
 export function NetworkMap({
   selectedLineId,
@@ -66,104 +74,135 @@ export function NetworkMap({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: BASEMAP as unknown as StyleSpecification,
-      attributionControl: false,
-    });
-    if (import.meta.env.DEV) {
-      // Dev-only handle so tests can inspect the camera/layers.
-      (window as unknown as Record<string, unknown>).__tkMap = map;
-    }
-    mapRef.current = map;
-    map.addControl(
-      new maplibregl.AttributionControl({
-        customAttribution:
-          'Transit data © <a href="https://gitlab.com/digitaltransport/data/africa/kampala">MapUganda &amp; Transport for Cairo</a>, CC BY 3.0',
-      })
-    );
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "bottom-right"
-    );
+    let map: MlMap | null = null;
+    let cancelled = false;
 
-    map.on("load", () => {
-      map.addSource("tk-lines", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: buildLineFeatures() },
-      });
-      map.addSource("tk-stops", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: buildStopFeatures() },
-      });
+    buildRideStyle({ buildings: true, satellite: true }).then((style) => {
+      if (cancelled || !containerRef.current) return;
 
-      map.addLayer({
-        id: "lines-dimmed",
-        type: "line",
-        source: "tk-lines",
-        filter: ["!=", ["get", "lid"], selectedLineId ?? ""],
-        paint: {
-          "line-color": ["match", ["get", "agency"], "bus", BUS_COLOR, TAXI_COLOR],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 13, 2.5],
-          "line-opacity": 0.3,
-        },
+      const small = Math.min(
+        containerRef.current.clientWidth || 400,
+        containerRef.current.clientHeight || 700
+      );
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style,
+        center: KAMPALA_CENTER,
+        zoom: small < 500 ? 11 : 11.6,
+        pitch: PITCH,
+        bearing: BEARING,
+        attributionControl: false,
       });
-      map.addLayer({
-        id: "lines",
-        type: "line",
-        source: "tk-lines",
-        filter: ["==", ["get", "lid"], selectedLineId ?? ""],
-        paint: {
-          "line-color": ["match", ["get", "agency"], "bus", BUS_COLOR, TAXI_COLOR],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 13, 5],
-          "line-opacity": 0.95,
-        },
-      });
-      map.addLayer({
-        id: "stops",
-        type: "circle",
-        source: "tk-stops",
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.5, 13, 4],
-          "circle-color": "#f4efe8",
-          "circle-stroke-color": "#14120f",
-          "circle-stroke-width": 1,
-          "circle-opacity": 0.9,
-        },
-      });
+      mapRef.current = map;
+      map.addControl(
+        new maplibregl.AttributionControl({
+          customAttribution:
+            'Transit data © <a href="https://gitlab.com/digitaltransport/data/africa/kampala">MapUganda &amp; Transport for Cairo</a>, CC BY 3.0',
+        })
+      );
+      map.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        "bottom-right"
+      );
 
-      map.fitBounds(networkBounds(), { padding: 40, duration: 0 });
+      map.on("load", () => {
+        const m = mapRef.current;
+        if (!m || cancelled) return;
+        m.addSource("tk-lines", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: buildLineFeatures() },
+        });
+        m.addSource("tk-stops", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: buildStopFeatures() },
+        });
 
-      map.on("click", "lines", (e) => {
-        const lid = e.features?.[0]?.properties?.lid;
-        if (typeof lid === "string") cbsRef.current.onSelectLine(lid);
-      });
+        // Dark casings under both line weights keep the routes readable
+        // against busy aerial imagery.
+        m.addLayer({
+          id: "lines-casing",
+          type: "line",
+          source: "tk-lines",
+          filter: ["==", ["get", "lid"], selectedLineId ?? ""],
+          paint: {
+            "line-color": "#14120f",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4.5, 13, 8],
+            "line-opacity": 0.9,
+          },
+        });
+        m.addLayer({
+          id: "lines-dimmed",
+          type: "line",
+          source: "tk-lines",
+          filter: ["!=", ["get", "lid"], selectedLineId ?? ""],
+          paint: {
+            "line-color": ["match", ["get", "agency"], "bus", BUS_COLOR, TAXI_COLOR],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.8, 13, 3.5],
+            "line-opacity": 0.55,
+          },
+        });
+        m.addLayer({
+          id: "lines",
+          type: "line",
+          source: "tk-lines",
+          filter: ["==", ["get", "lid"], selectedLineId ?? ""],
+          paint: {
+            "line-color": ["match", ["get", "agency"], "bus", BUS_COLOR, TAXI_COLOR],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 13, 5],
+            "line-opacity": 0.98,
+          },
+        });
+        // Stages only earn their dots up close — at city zoom 1,242 of them
+        // turn every route into a caterpillar.
+        m.addLayer(
+          {
+            id: "stops",
+            type: "circle",
+            source: "tk-stops",
+            minzoom: 12,
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 14, 4],
+              "circle-color": "#ffffff",
+              "circle-stroke-color": "#14120f",
+              "circle-stroke-width": 1,
+              "circle-opacity": 0.95,
+            },
+          },
+          "lines-casing"
+        );
 
-      map.on("click", "stops", (e) => {
-        const idx = e.features?.[0]?.properties?.idx;
-        if (typeof idx === "number") cbsRef.current.onSelectStop(idx);
-      });
+        m.on("click", "lines", (e) => {
+          const lid = e.features?.[0]?.properties?.lid;
+          if (typeof lid === "string") cbsRef.current.onSelectLine(lid);
+        });
 
-      // Clicking bare map / a line with no stage under the cursor clears the
-      // selection — but a stage click wins over the line beneath it.
-      map.on("click", "lines-dimmed", (e) => {
-        const under = map.queryRenderedFeatures(e.point, { layers: ["stops"] });
-        if (under.length === 0) {
-          cbsRef.current.onSelectLine(null);
-          cbsRef.current.onSelectStop(null);
+        m.on("click", "stops", (e) => {
+          const idx = e.features?.[0]?.properties?.idx;
+          if (typeof idx === "number") cbsRef.current.onSelectStop(idx);
+        });
+
+        // Clicking bare map / a line with no stage under the cursor clears
+        // the selection — a stage click wins over the line beneath it.
+        m.on("click", "lines-dimmed", (e) => {
+          const under = m.queryRenderedFeatures(e.point, { layers: ["stops"] });
+          if (under.length === 0) {
+            cbsRef.current.onSelectLine(null);
+            cbsRef.current.onSelectStop(null);
+          }
+        });
+
+        const enter = () => (m.getCanvas().style.cursor = "pointer");
+        const leave = () => (m.getCanvas().style.cursor = "");
+        for (const layer of ["lines", "lines-dimmed", "stops"]) {
+          m.on("mouseenter", layer, enter);
+          m.on("mouseleave", layer, leave);
         }
       });
-
-      const enter = () => (map.getCanvas().style.cursor = "pointer");
-      const leave = () => (map.getCanvas().style.cursor = "");
-      for (const layer of ["lines", "lines-dimmed", "stops"]) {
-        map.on("mouseenter", layer, enter);
-        map.on("mouseleave", layer, leave);
-      }
     });
 
     return () => {
-      map.remove();
+      cancelled = true;
+      map?.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +215,7 @@ export function NetworkMap({
     const selected = selectedLineId ?? "";
     map.setFilter("lines", ["==", ["get", "lid"], selected]);
     map.setFilter("lines-dimmed", ["!=", ["get", "lid"], selected]);
+    map.setFilter("lines-casing", ["==", ["get", "lid"], selected]);
   }, [selectedLineId]);
 
   // Fly the camera to whatever the app asked to focus (search pick etc.).
