@@ -664,6 +664,19 @@
   color: var(--color-muted);
 }
 
+.tk-leg__boda {
+  margin-top: 6px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--color-green-dark);
+  color: #e8f5ec;
+  font-size: 11.5px;
+}
+
+.tk-journey__report {
+  color: var(--color-orange);
+}
+
 .tk-journey__map {
   position: relative;
   flex: 1;

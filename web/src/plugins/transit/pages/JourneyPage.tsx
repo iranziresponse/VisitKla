@@ -8,11 +8,16 @@ import {
   formatUgx,
   stopByIndex,
 } from "../lib/network";
+import { BODA_SUGGEST_M, estimateBoda } from "../lib/boda";
 import {
   planJourney,
   type Journey,
   type Place,
 } from "../lib/planner";
+
+const REPORT_WHATSAPP = import.meta.env.VITE_REPORT_WHATSAPP_NUMBER as
+  | string
+  | undefined;
 
 /**
  * /transit/journey — from/to → ranked journeys (direct + 1 transfer),
@@ -114,6 +119,16 @@ export function JourneyPage() {
                     Walk {Math.round(leg.meters)} m (~
                     {Math.max(1, Math.round(leg.minutes))} min) to{" "}
                     <strong>{leg.to.name}</strong>
+                    {leg.meters > BODA_SUGGEST_M && (() => {
+                      const boda = estimateBoda(leg.meters);
+                      return (
+                        <div className="tk-leg__boda">
+                          Too far to walk? A boda is ≈ {formatUgx(boda.min)}–
+                          {formatUgx(boda.max)} (~
+                          {Math.max(2, Math.round(leg.meters / 250))} min).
+                        </div>
+                      );
+                    })()}
                   </li>
                 ) : (
                   <li key={i} className="tk-leg tk-leg--ride">
@@ -136,6 +151,19 @@ export function JourneyPage() {
             <p className="tk-card__note">
               Times are typical estimates from 2019/20 fieldwork — matatus
               leave when full; verify fares on the ground.
+              {REPORT_WHATSAPP && (
+                <>
+                  {" "}
+                  <a
+                    className="tk-journey__report"
+                    href={`https://wa.me/${REPORT_WHATSAPP.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Something wrong? Report it.
+                  </a>
+                </>
+              )}
             </p>
           </div>
         )}
@@ -190,6 +218,8 @@ function JourneyOptionCard({
         {formatUgx(journey.fare)} ·{" "}
         {journey.transfers === 0 ? "direct" : `${journey.transfers} transfer`} ·
         walk {Math.round(journey.walkMeters)} m
+        {journey.walkMeters > BODA_SUGGEST_M &&
+          ` · boda ≈ ${formatUgx(estimateBoda(journey.walkMeters).min)}+`}
       </span>
     </button>
   );
