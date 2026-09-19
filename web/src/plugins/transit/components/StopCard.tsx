@@ -1,4 +1,11 @@
-import { getLine, type Stop } from "../lib/network";
+import {
+  bandFor,
+  bandLabel,
+  formatHeadway,
+  getLine,
+  headwayNow,
+  type Stop,
+} from "../lib/network";
 
 interface StopCardProps {
   stop: Stop;
@@ -8,11 +15,22 @@ interface StopCardProps {
 
 const MAX_CHIPS = 12;
 
-/** Detail card for a tapped stage: which lines serve it. */
+/** Detail card for a tapped stage: which lines serve it, and how often. */
 export function StopCard({ stop, onPickLine, onClose }: StopCardProps) {
   const lines = stop.ln.map(getLine).filter((l) => l !== undefined);
   const shown = lines.slice(0, MAX_CHIPS);
   const rest = lines.length - shown.length;
+  const when = new Date();
+  const band = bandFor(when);
+
+  const departures = lines
+    .map((line) => ({
+      line,
+      headway: Math.min(...line.v.map((v) => headwayNow(v, when))),
+    }))
+    .filter((d) => Number.isFinite(d.headway))
+    .sort((a, b) => a.headway - b.headway)
+    .slice(0, 6);
 
   return (
     <section className="tk-card" aria-label="Stage details">
@@ -39,6 +57,23 @@ export function StopCard({ stop, onPickLine, onClose }: StopCardProps) {
         ))}
         {rest > 0 && <span className="tk-chip">+{rest} more</span>}
       </div>
+
+      {departures.length > 0 && (
+        <div className="tk-card__departures">
+          <p className="tk-card__departures-title">
+            Typical departures — {bandLabel(band)}
+          </p>
+          {departures.map(({ line, headway }) => (
+            <p key={line.id} className="tk-card__departure">
+              <span className="tk-card__departure-code">{line.code}</span>
+              every {formatHeadway(headway)}
+            </p>
+          ))}
+          <p className="tk-card__note">
+            Matatus leave when full — these are typical gaps, not a timetable.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

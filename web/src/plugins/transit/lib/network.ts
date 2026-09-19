@@ -120,6 +120,26 @@ export function bandLabel(band: string): string {
   return BAND_LABELS[band] ?? band;
 }
 
+/** Time-of-day band a given moment falls into (matches the pipeline's buckets). */
+export function bandFor(when: Date): string {
+  const h = when.getHours();
+  return h < 6 ? "night" : h < 10 ? "am" : h < 16 ? "mid" : h < 20 ? "pm" : "eve";
+}
+
+/** Best headway (seconds) a variant runs with at a given moment. */
+export function headwayNow(variant: { head: Record<string, number> }, when: Date): number {
+  const band = bandFor(when);
+  return (
+    variant.head[band] ??
+    variant.head.am ??
+    variant.head.mid ??
+    variant.head.pm ??
+    variant.head.eve ??
+    variant.head.night ??
+    900
+  );
+}
+
 /** 466 → "~8 min" */
 export function formatHeadway(secs: number): string {
   const mins = Math.max(1, Math.round(secs / 60));
