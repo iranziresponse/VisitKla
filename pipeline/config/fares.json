@@ -1,0 +1,14 @@
+{
+  "$comment": "Fares are NOT in the GTFS feed — this file is the fare layer. 'tiers' are distance-based defaults (shape length in meters → UGX) drafted from public knowledge of Kampala taxi stage fares (2024/2025 era); they are deliberately coarse and shown as ranges in the UI. 'lineOverrides' pins exact fares for specific routes (route_id → UGX) as field validation progresses.",
+  "currency": "UGX",
+  "tiers": [
+    { "maxMeters": 5000, "fare": 1500 },
+    { "maxMeters": 15000, "fare": 2500 },
+    { "maxMeters": 30000, "fare": 4000 },
+    { "maxMeters": 45000, "fare": 6000 },
+    { "maxMeters": 999999999, "fare": 8000 }
+  ],
+  "lineOverrides": {
+    "$example": "taxi_KA021: 1500"
+  }
+}
