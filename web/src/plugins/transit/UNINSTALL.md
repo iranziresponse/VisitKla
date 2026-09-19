@@ -43,6 +43,12 @@ classic app (`web/src/App.tsx`) through clearly marked blocks.
 
 ## Notes
 
+- The plugin reads (never modifies) the classic app's
+  `web/src/lib/rideStyle.ts` so its maps use the exact same photoreal
+  basemap as the world/navigation maps. Deleting the plugin removes the
+  import, so there is nothing to clean up there; if you ever rename that
+  file, only the two imports under `web/src/plugins/transit/components/`
+  need updating.
 - The `visitkla:mode` localStorage key the toggle writes is harmless once
   the plugin is gone; no cleanup needed (browsers evict it with site data).
 - If this file and the plugin are both present, these steps are canonical —
