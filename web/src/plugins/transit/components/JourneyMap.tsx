@@ -1,7 +1,7 @@
-import maplibregl, { type Map as MlMap } from "maplibre-gl";
+import maplibregl, { type Map as MlMap, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { stopByIndex, type Stop } from "../lib/network";
+import { stopByIndex } from "../lib/network";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
 import type { Journey } from "../lib/planner";
@@ -15,22 +15,73 @@ const CASING_COLOR = "#14120f";
 /** Same tilted camera language as the classic app's maps. */
 const PITCH = 55;
 const BEARING = -12;
+const KAMPALA_CENTER: [number, number] = [32.5825, 0.3476];
+const CITY_ZOOM = 12;
 
-interface JourneyMapProps {
-  journey: Journey;
-}
+const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
-function stopByIdx(idx: number): Stop {
-  return stopByIndex(idx);
+function journeyFeatures(journey: Journey) {
+  const walk: GeoJSON.Feature[] = [];
+  const ride: GeoJSON.Feature[] = [];
+  const stages: GeoJSON.Feature[] = [];
+  const lons: number[] = [];
+  const lats: number[] = [];
+
+  for (const leg of journey.legs) {
+    if (leg.kind === "walk") {
+      walk.push({
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [leg.from.lng, leg.from.lat],
+            [leg.to.lng, leg.to.lat],
+          ],
+        },
+      });
+      lons.push(leg.from.lng, leg.to.lng);
+      lats.push(leg.from.lat, leg.to.lat);
+    } else {
+      const coords = leg.stopIdxs.map((i) => {
+        const st = stopByIndex(i);
+        return [st.lng, st.lat] as [number, number];
+      });
+      ride.push({
+        type: "Feature",
+        properties: { agency: leg.line.agency },
+        geometry: { type: "LineString", coordinates: coords },
+      });
+      for (const c of coords) {
+        lons.push(c[0]);
+        lats.push(c[1]);
+      }
+      const board = stopByIndex(leg.stopIdxs[0]);
+      const alight = stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+      stages.push(
+        {
+          type: "Feature",
+          properties: { kind: "board", n: board.n },
+          geometry: { type: "Point", coordinates: [board.lng, board.lat] },
+        },
+        {
+          type: "Feature",
+          properties: { kind: "alight", n: alight.n },
+          geometry: { type: "Point", coordinates: [alight.lng, alight.lat] },
+        }
+      );
+    }
+  }
+  return { walk, ride, stages, lons, lats };
 }
 
 /**
- * Draws one selected journey: walk legs dashed, ride legs colored by
- * agency over dark casings (readable on aerial imagery), boarding and
- * alighting stages marked. Only the journey is drawn so the trip reads
- * clearly against the photoreal ground.
+ * The planner's persistent map. With no journey selected it's simply the
+ * photoreal city view (same style + tilted camera as the classic app);
+ * selecting a journey draws it — walk legs dashed, ride legs colored by
+ * agency over dark casings — and clears again when the selection does.
  */
-export function JourneyMap({ journey }: JourneyMapProps) {
+export function JourneyMap({ journey }: { journey: Journey | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -47,6 +98,8 @@ export function JourneyMap({ journey }: JourneyMapProps) {
       map = new maplibregl.Map({
         container: containerRef.current,
         style,
+        center: KAMPALA_CENTER,
+        zoom: CITY_ZOOM,
         pitch: PITCH,
         bearing: BEARING,
         attributionControl: false,
@@ -59,73 +112,12 @@ export function JourneyMap({ journey }: JourneyMapProps) {
         })
       );
 
-      const w: number[] = [];
-      const s: number[] = [];
-      const walkFeatures: GeoJSON.Feature[] = [];
-      const rideFeatures: GeoJSON.Feature[] = [];
-      const stageFeatures: GeoJSON.Feature[] = [];
-
-      for (const leg of journey.legs) {
-        if (leg.kind === "walk") {
-          walkFeatures.push({
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [leg.from.lng, leg.from.lat],
-                [leg.to.lng, leg.to.lat],
-              ],
-            },
-          });
-          w.push(leg.from.lng, leg.to.lng);
-          s.push(leg.from.lat, leg.to.lat);
-        } else {
-          const coords = leg.stopIdxs.map((i) => {
-            const st = stopByIdx(i);
-            return [st.lng, st.lat] as [number, number];
-          });
-          rideFeatures.push({
-            type: "Feature",
-            properties: { agency: leg.line.agency },
-            geometry: { type: "LineString", coordinates: coords },
-          });
-          for (const c of coords) {
-            w.push(c[0]);
-            s.push(c[1]);
-          }
-          const board = stopByIdx(leg.stopIdxs[0]);
-          const alight = stopByIdx(leg.stopIdxs[leg.stopIdxs.length - 1]);
-          stageFeatures.push(
-            {
-              type: "Feature",
-              properties: { kind: "board", n: board.n },
-              geometry: { type: "Point", coordinates: [board.lng, board.lat] },
-            },
-            {
-              type: "Feature",
-              properties: { kind: "alight", n: alight.n },
-              geometry: { type: "Point", coordinates: [alight.lng, alight.lat] },
-            }
-          );
-        }
-      }
-
       map.on("load", () => {
         const m = mapRef.current;
         if (!m || cancelled) return;
-        m.addSource("tk-walk", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: walkFeatures },
-        });
-        m.addSource("tk-ride", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: rideFeatures },
-        });
-        m.addSource("tk-stages", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: stageFeatures },
-        });
+        m.addSource("tk-walk", { type: "geojson", data: EMPTY });
+        m.addSource("tk-ride", { type: "geojson", data: EMPTY });
+        m.addSource("tk-stages", { type: "geojson", data: EMPTY });
 
         m.addLayer({
           id: "walk-casing",
@@ -178,15 +170,6 @@ export function JourneyMap({ journey }: JourneyMapProps) {
           },
         });
 
-        if (w.length >= 2) {
-          m.fitBounds(
-            [
-              [Math.min(...w), Math.min(...s)],
-              [Math.max(...w), Math.max(...s)],
-            ],
-            { padding: 70, duration: 0, maxZoom: 15.5 }
-          );
-        }
         if (!cancelled) setReady(true);
       });
     });
@@ -196,7 +179,41 @@ export function JourneyMap({ journey }: JourneyMapProps) {
       map?.remove();
       mapRef.current = null;
     };
-  }, [journey]);
+  }, []);
+
+  // Draw / clear the journey. Sources exist from "load" onward; the ready
+  // flag gates this until then.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const src = (id: string) => {
+      const s = map.getSource(id);
+      return s ? (s as GeoJSONSource) : null;
+    };
+
+    if (!journey) {
+      src("tk-walk")?.setData(EMPTY);
+      src("tk-ride")?.setData(EMPTY);
+      src("tk-stages")?.setData(EMPTY);
+      map.easeTo({ center: KAMPALA_CENTER, zoom: CITY_ZOOM, duration: 700 });
+      return;
+    }
+
+    const f = journeyFeatures(journey);
+    src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
+    src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
+    src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
+
+    if (f.lons.length >= 1) {
+      map.fitBounds(
+        [
+          [Math.min(...f.lons), Math.min(...f.lats)],
+          [Math.max(...f.lons), Math.max(...f.lats)],
+        ],
+        { padding: 80, duration: 900, maxZoom: 15.5 }
+      );
+    }
+  }, [journey, ready]);
 
   return (
     <div className="tk-journey-map-wrap">

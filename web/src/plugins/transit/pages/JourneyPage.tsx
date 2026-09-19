@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlaceInput } from "../components/PlaceInput";
 import { JourneyMap } from "../components/JourneyMap";
@@ -12,6 +12,7 @@ import { BODA_SUGGEST_M, estimateBoda } from "../lib/boda";
 import {
   planJourney,
   type Journey,
+  type Leg,
   type Place,
 } from "../lib/planner";
 
@@ -20,9 +21,10 @@ const REPORT_WHATSAPP = import.meta.env.VITE_REPORT_WHATSAPP_NUMBER as
   | undefined;
 
 /**
- * /transit/journey — from/to → ranked journeys (direct + 1 transfer),
- * with a leg-by-leg detail view on its own map. Planning runs client-side
- * over the bundled network (worst case ~1s, hence the pending state).
+ * /transit — the front door. Enter where you are and where you're going,
+ * get ranked journeys (direct + 1 transfer) and a step-by-step route:
+ * which stage to walk to, which line to board, where to alight. The map
+ * sits alongside the whole time (persistent JourneyMap).
  */
 export function JourneyPage() {
   const navigate = useNavigate();
@@ -45,12 +47,18 @@ export function JourneyPage() {
     // let the pending state paint before the synchronous compute
     window.setTimeout(() => {
       const r = planJourney(from, to, { when: new Date() });
-      setResult({ journeys: r.journeys, stretchedOrigin: r.stretchedOrigin, stretchedDestination: r.stretchedDestination });
+      setResult({
+        journeys: r.journeys,
+        stretchedOrigin: r.stretchedOrigin,
+        stretchedDestination: r.stretchedDestination,
+      });
       setPending(false);
     }, 30);
   }
 
   const journey = selected !== null && result ? result.journeys[selected] : null;
+  // A "0 m walk" step is pure noise when the stage sits on the spot.
+  const legs = journey ? journey.legs.filter((l) => !(l.kind === "walk" && l.meters < 30)) : [];
   const stretchNote =
     result && (result.stretchedOrigin || result.stretchedDestination)
       ? "Includes a longer walk than usual — the nearest surveyed stage is far away."
@@ -59,27 +67,26 @@ export function JourneyPage() {
   return (
     <div className="tk-journey">
       <div className="tk-journey__panel">
-        <button className="tk-back" onClick={() => navigate("/transit")}>
-          ← Network
+        <button className="tk-back" onClick={() => navigate("/transit/network")}>
+          ← Explore lines &amp; stages
         </button>
-        <h2 className="tk-journey__title">Plan a matatu journey</h2>
 
         <div className="tk-journey__form">
           <PlaceInput
-            placeholder="From — stage, place or your location"
+            placeholder="Your location — or type a place"
             value={from}
             onPick={setFrom}
             onClear={() => setFrom(null)}
             allowLocation
           />
           <PlaceInput
-            placeholder="To — stage or any place"
+            placeholder="Where are you going?"
             value={to}
             onPick={setTo}
             onClear={() => setTo(null)}
           />
           <button className="tk-go" onClick={search} disabled={!canSearch || pending}>
-            {pending ? "Finding journeys…" : "Find journeys"}
+            {pending ? "Finding routes…" : "Show me the route"}
           </button>
         </div>
 
@@ -95,6 +102,7 @@ export function JourneyPage() {
 
         {result && result.journeys.length > 0 && selected === null && !pending && (
           <div className="tk-results">
+            <p className="tk-results__label">Pick a route:</p>
             {result.journeys.map((j, i) => (
               <JourneyOptionCard key={i} journey={j} onOpen={() => setSelected(i)} />
             ))}
@@ -104,7 +112,7 @@ export function JourneyPage() {
         {journey && (
           <div className="tk-journey__detail">
             <button className="tk-back" onClick={() => setSelected(null)}>
-              ← All journeys
+              ← All routes
             </button>
             <p className="tk-journey__summary">
               {journey.totalMinutes} min · {formatUgx(journey.fare)} ·{" "}
@@ -112,41 +120,10 @@ export function JourneyPage() {
                 ? "direct"
                 : `${journey.transfers} transfer`}
             </p>
-            <ol className="tk-legs">
-              {journey.legs.map((leg, i) =>
-                leg.kind === "walk" ? (
-                  <li key={i} className="tk-leg tk-leg--walk">
-                    Walk {Math.round(leg.meters)} m (~
-                    {Math.max(1, Math.round(leg.minutes))} min) to{" "}
-                    <strong>{leg.to.name}</strong>
-                    {leg.meters > BODA_SUGGEST_M && (() => {
-                      const boda = estimateBoda(leg.meters);
-                      return (
-                        <div className="tk-leg__boda">
-                          Too far to walk? A boda is ≈ {formatUgx(boda.min)}–
-                          {formatUgx(boda.max)} (~
-                          {Math.max(2, Math.round(leg.meters / 250))} min).
-                        </div>
-                      );
-                    })()}
-                  </li>
-                ) : (
-                  <li key={i} className="tk-leg tk-leg--ride">
-                    <div>
-                      Board at <strong>{stopByIndex(leg.stopIdxs[0]).n}</strong>{" "}
-                      — <span className="tk-leg__code">{leg.line.code}</span>{" "}
-                      toward {stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]).n}
-                    </div>
-                    <div className="tk-leg__meta">
-                      {leg.stopIdxs.length} stages · ~
-                      {Math.round(leg.minutes)} min ·{" "}
-                      {formatUgx(leg.fare)} · every{" "}
-                      {formatHeadway(leg.headwaySec)} (
-                      {AGENCY_LABEL[leg.line.agency] ?? "line"})
-                    </div>
-                  </li>
-                )
-              )}
+            <ol className="tk-steps">
+              {legs.map((leg, i) => (
+                <Step key={i} leg={leg} />
+              ))}
             </ol>
             <p className="tk-card__note">
               Times are typical estimates from 2019/20 fieldwork — matatus
@@ -170,17 +147,55 @@ export function JourneyPage() {
       </div>
 
       <div className="tk-journey__map">
-        {journey ? (
-          <JourneyMap journey={journey} />
-        ) : (
-          <div className="tk-journey__map-hint">
-            {result && result.journeys.length > 0
-              ? "Tap a journey to see it on the map"
-              : "Your journey appears here"}
-          </div>
-        )}
+        <JourneyMap journey={journey} />
       </div>
     </div>
+  );
+}
+
+function Step({ leg }: { leg: Leg }) {
+  if (leg.kind === "walk") {
+    const boda =
+      leg.meters > BODA_SUGGEST_M ? estimateBoda(leg.meters) : null;
+    return (
+      <li className="tk-step tk-step--walk">
+        <span className="tk-step__badge tk-step__badge--walk">walk</span>
+        <div className="tk-step__body">
+          Walk {Math.round(leg.meters)} m (~
+          {Math.max(1, Math.round(leg.minutes))} min) to{" "}
+          <strong>{leg.to.name}</strong>
+          {boda && (
+            <div className="tk-step__boda">
+              Too far to walk? A boda is ≈ {formatUgx(boda.min)}–
+              {formatUgx(boda.max)} (~{Math.max(2, Math.round(leg.meters / 250))}{" "}
+              min).
+            </div>
+          )}
+        </div>
+      </li>
+    );
+  }
+
+  const board = stopByIndex(leg.stopIdxs[0]);
+  const alight = stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+  return (
+    <li className="tk-step tk-step--ride">
+      <span className="tk-step__badge">{leg.line.code}</span>
+      <div className="tk-step__body">
+        <div className="tk-step__head">
+          Board at <strong>{board.n}</strong> — toward{" "}
+          <strong>{alight.n}</strong>
+        </div>
+        <div className="tk-step__meta">
+          {leg.stopIdxs.length} stages · ~{Math.round(leg.minutes)} min ·{" "}
+          {formatUgx(leg.fare)} · every {formatHeadway(leg.headwaySec)} (
+          {AGENCY_LABEL[leg.line.agency] ?? "line"})
+        </div>
+        <div className="tk-step__alight">
+          Alight at <strong>{alight.n}</strong>
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -191,24 +206,22 @@ function JourneyOptionCard({
   journey: Journey;
   onOpen: () => void;
 }) {
-  const chain = useMemo(
-    () =>
-      journey.legs.map((leg, i) => {
-        if (leg.kind === "walk") {
-          return (
-            <span key={i} className="tk-chain__walk">
-              {Math.round(leg.meters)} m walk
-            </span>
-          );
-        }
-        return (
-          <span key={i} className="tk-chain__ride">
-            {leg.line.code}
-          </span>
-        );
-      }),
-    [journey]
-  );
+  const chain = journey.legs
+    .filter((leg) => !(leg.kind === "walk" && leg.meters < 30))
+    .map((leg, i) => {
+    if (leg.kind === "walk") {
+      return (
+        <span key={i} className="tk-chain__walk">
+          {Math.round(leg.meters)} m walk
+        </span>
+      );
+    }
+    return (
+      <span key={i} className="tk-chain__ride">
+        {leg.line.code}
+      </span>
+    );
+  });
 
   return (
     <button className="tk-option" onClick={onOpen}>

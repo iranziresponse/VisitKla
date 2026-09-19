@@ -1,21 +1,19 @@
 import { Routes, Route, Link, useLocation } from "react-router-dom";
-import { lazy, Suspense } from "react";
 import { TransitHome } from "./pages/TransitHome";
+import { JourneyPage } from "./pages/JourneyPage";
 import "./styles/plugin.css";
-
-const JourneyPage = lazy(() =>
-  import("./pages/JourneyPage").then((m) => ({ default: m.JourneyPage }))
-);
 
 /**
  * Transit plugin root — mounted at /transit/* and lazily loaded, so the
  * classic app never downloads a byte of this tree unless it's visited.
- * The shell (header/footer) is shared by the network explorer (/transit)
- * and the journey planner (/transit/journey).
+ *
+ * The journey planner is the front door (/transit): enter where you are
+ * and where you're going, get a route. The whole-network explorer lives
+ * one tap away at /transit/network.
  */
 export function TransitApp() {
   const location = useLocation();
-  const onJourney = location.pathname.endsWith("/journey");
+  const onPlanner = !location.pathname.includes("/network");
 
   return (
     <div className="tk-app">
@@ -28,33 +26,24 @@ export function TransitApp() {
             </span>
           </h1>
           <p className="tk-header__subtitle">
-            Kampala's real matatu network — every line, every stage
+            {onPlanner
+              ? "Matatu routes across Kampala — enter where you're going"
+              : "Kampala's real matatu network — every line, every stage"}
           </p>
         </div>
-        {!onJourney && (
-          <Link to="journey" className="tk-header__cta">
-            Plan a journey
-          </Link>
-        )}
+        <Link
+          to={onPlanner ? "network" : "journey"}
+          className="tk-header__cta"
+        >
+          {onPlanner ? "Explore lines" : "Plan a journey"}
+        </Link>
       </header>
 
       <main className="tk-main">
         <Routes>
-          <Route index element={<TransitHome />} />
-          <Route
-            path="journey"
-            element={
-              <Suspense
-                fallback={
-                  <div className="app-route-loading">
-                    <span className="app-route-loading__spinner" />
-                  </div>
-                }
-              >
-                <JourneyPage />
-              </Suspense>
-            }
-          />
+          <Route index element={<JourneyPage />} />
+          <Route path="network" element={<TransitHome />} />
+          <Route path="journey" element={<JourneyPage />} />
         </Routes>
       </main>
 
