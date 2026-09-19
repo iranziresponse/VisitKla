@@ -1,0 +1,2 @@
+# Downloaded GTFS feed + extracted files — reproducible via `npm run fetch`.
+.cache/

@@ -1,0 +1,12 @@
+{
+  "name": "visitkla-transit-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline data pipeline: turns the DT4A Kampala GTFS feed into the transit plugin's bundled transit-data.json. Zero runtime dependencies (Node built-ins only) so the classic app's package.json is never touched.",
+  "type": "commonjs",
+  "scripts": {
+    "fetch": "node scripts/fetch-gtfs.js",
+    "build:data": "node scripts/build-network.js",
+    "all": "npm run fetch && npm run build:data"
+  }
+}
