@@ -91,6 +91,7 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
 
     let map: MlMap | null = null;
     let cancelled = false;
+    let fallback: number | undefined;
 
     buildRideStyle({ buildings: true, satellite: true }).then((style) => {
       if (cancelled || !containerRef.current) return;
@@ -170,12 +171,20 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
           },
         });
 
-        if (!cancelled) setReady(true);
+        // Reveal once tiles have painted — same treatment as the classic
+        // world map — with a safety fallback for a stalled tile server.
+        m.once("idle", () => {
+          if (cancelled) return;
+          if (fallback !== undefined) window.clearTimeout(fallback);
+          setReady(true);
+        });
+        fallback = window.setTimeout(() => !cancelled && setReady(true), 14000);
       });
     });
 
     return () => {
       cancelled = true;
+      if (fallback !== undefined) window.clearTimeout(fallback);
       map?.remove();
       mapRef.current = null;
     };

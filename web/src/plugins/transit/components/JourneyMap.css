@@ -4,29 +4,6 @@
   inset: 0;
 }
 
-.tk-map-loading {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.tk-map-loading__spinner {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--accent, #ff6b00);
-  animation: tk-spin 0.9s linear infinite;
-}
-
-@keyframes tk-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .tk-journey-map .maplibregl-ctrl-attrib {
   background: rgba(20, 18, 15, 0.8);
   color: var(--color-muted-2);

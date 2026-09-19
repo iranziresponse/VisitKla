@@ -721,6 +721,32 @@
   min-width: 0;
 }
 
+/* map loading veil — shared by both plugin maps, matching the classic
+   app's world-map loading treatment (spinner until tiles have painted) */
+.tk-map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--color-bg);
+}
+
+.tk-map-loading__spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-orange);
+  animation: tk-spin 0.9s linear infinite;
+}
+
+@keyframes tk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 720px) {
   .tk-header {
     padding-right: calc(140px + env(safe-area-inset-right, 0px));

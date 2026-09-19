@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { lineBounds, network, stopByIndex } from "../lib/network";
@@ -68,6 +68,7 @@ export function NetworkMap({
 }: NetworkMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
+  const [ready, setReady] = useState(false);
   const cbsRef = useRef({ onSelectLine, onSelectStop });
   cbsRef.current = { onSelectLine, onSelectStop };
 
@@ -76,6 +77,7 @@ export function NetworkMap({
 
     let map: MlMap | null = null;
     let cancelled = false;
+    let fallback: number | undefined;
 
     buildRideStyle({ buildings: true, satellite: true }).then((style) => {
       if (cancelled || !containerRef.current) return;
@@ -94,6 +96,10 @@ export function NetworkMap({
         attributionControl: false,
       });
       mapRef.current = map;
+      if (import.meta.env.DEV) {
+        // Dev-only handle so tests can inspect the camera/project points.
+        (window as unknown as Record<string, unknown>).__tkMap = map;
+      }
       map.addControl(
         new maplibregl.AttributionControl({
           customAttribution:
@@ -161,7 +167,7 @@ export function NetworkMap({
             source: "tk-stops",
             minzoom: 12,
             paint: {
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 14, 4],
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 14, 4.5, 16, 6],
               "circle-color": "#ffffff",
               "circle-stroke-color": "#14120f",
               "circle-stroke-width": 1,
@@ -170,13 +176,26 @@ export function NetworkMap({
           },
           "lines-casing"
         );
+        // Invisible, much larger twin of the dots purely for hit-testing —
+        // a 4px tap target is hostile on a phone.
+        m.addLayer({
+          id: "stops-hit",
+          type: "circle",
+          source: "tk-stops",
+          minzoom: 12,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 12, 14, 16],
+            "circle-opacity": 0,
+            "circle-stroke-width": 0,
+          },
+        });
 
         m.on("click", "lines", (e) => {
           const lid = e.features?.[0]?.properties?.lid;
           if (typeof lid === "string") cbsRef.current.onSelectLine(lid);
         });
 
-        m.on("click", "stops", (e) => {
+        m.on("click", "stops-hit", (e) => {
           const idx = e.features?.[0]?.properties?.idx;
           if (typeof idx === "number") cbsRef.current.onSelectStop(idx);
         });
@@ -184,7 +203,7 @@ export function NetworkMap({
         // Clicking bare map / a line with no stage under the cursor clears
         // the selection — a stage click wins over the line beneath it.
         m.on("click", "lines-dimmed", (e) => {
-          const under = m.queryRenderedFeatures(e.point, { layers: ["stops"] });
+          const under = m.queryRenderedFeatures(e.point, { layers: ["stops-hit"] });
           if (under.length === 0) {
             cbsRef.current.onSelectLine(null);
             cbsRef.current.onSelectStop(null);
@@ -193,15 +212,26 @@ export function NetworkMap({
 
         const enter = () => (m.getCanvas().style.cursor = "pointer");
         const leave = () => (m.getCanvas().style.cursor = "");
-        for (const layer of ["lines", "lines-dimmed", "stops"]) {
+        for (const layer of ["lines", "lines-dimmed", "stops-hit"]) {
           m.on("mouseenter", layer, enter);
           m.on("mouseleave", layer, leave);
         }
+
+        // Reveal only once tiles have actually painted — same treatment
+        // as the classic world map — with a safety fallback so a stalled
+        // tile server can never leave the veil up forever.
+        m.once("idle", () => {
+          if (cancelled) return;
+          if (fallback !== undefined) window.clearTimeout(fallback);
+          setReady(true);
+        });
+        fallback = window.setTimeout(() => !cancelled && setReady(true), 14000);
       });
     });
 
     return () => {
       cancelled = true;
+      if (fallback !== undefined) window.clearTimeout(fallback);
       map?.remove();
       mapRef.current = null;
     };
@@ -234,5 +264,14 @@ export function NetworkMap({
     }
   }, [focus]);
 
-  return <div className="tk-network-map" ref={containerRef} />;
+  return (
+    <div className="tk-network-shell">
+      <div className="tk-network-map" ref={containerRef} />
+      {!ready && (
+        <div className="tk-map-loading">
+          <span className="tk-map-loading__spinner" />
+        </div>
+      )}
+    </div>
+  );
 }
