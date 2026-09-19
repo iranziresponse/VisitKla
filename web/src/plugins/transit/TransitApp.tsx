@@ -1,44 +1,21 @@
-import { useCallback, useState } from "react";
-import { NetworkMap, type FocusTarget } from "./components/NetworkMap";
-import { LineCard } from "./components/LineCard";
-import { StopCard } from "./components/StopCard";
-import { SearchPanel } from "./components/SearchPanel";
-import { getLine, stopByIndex } from "./lib/network";
+import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { TransitHome } from "./pages/TransitHome";
 import "./styles/plugin.css";
+
+const JourneyPage = lazy(() =>
+  import("./pages/JourneyPage").then((m) => ({ default: m.JourneyPage }))
+);
 
 /**
  * Transit plugin root — mounted at /transit/* and lazily loaded, so the
  * classic app never downloads a byte of this tree unless it's visited.
+ * The shell (header/footer) is shared by the network explorer (/transit)
+ * and the journey planner (/transit/journey).
  */
 export function TransitApp() {
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
-  const [selectedStopIdx, setSelectedStopIdx] = useState<number | null>(null);
-  const [focus, setFocus] = useState<FocusTarget | null>(null);
-
-  const handleSelectLine = useCallback((id: string | null) => {
-    setSelectedLineId(id);
-    setSelectedStopIdx(null);
-  }, []);
-
-  const handleSelectStop = useCallback((idx: number | null) => {
-    setSelectedStopIdx(idx);
-    if (idx !== null) setSelectedLineId(null);
-  }, []);
-
-  const handleSearchLine = useCallback((id: string) => {
-    setSelectedStopIdx(null);
-    setSelectedLineId(id);
-    setFocus({ seq: Date.now(), kind: "line", idOrIdx: id });
-  }, []);
-
-  const handleSearchStop = useCallback((idx: number) => {
-    setSelectedLineId(null);
-    setSelectedStopIdx(idx);
-    setFocus({ seq: Date.now(), kind: "stop", idOrIdx: idx });
-  }, []);
-
-  const selectedLine = selectedLineId ? getLine(selectedLineId) : null;
-  const selectedStop = selectedStopIdx !== null ? stopByIndex(selectedStopIdx) : null;
+  const location = useLocation();
+  const onJourney = location.pathname.endsWith("/journey");
 
   return (
     <div className="tk-app">
@@ -54,28 +31,31 @@ export function TransitApp() {
             Kampala's real matatu network — every line, every stage
           </p>
         </div>
+        {!onJourney && (
+          <Link to="journey" className="tk-header__cta">
+            Plan a journey
+          </Link>
+        )}
       </header>
 
       <main className="tk-main">
-        <NetworkMap
-          selectedLineId={selectedLineId}
-          focus={focus}
-          onSelectLine={handleSelectLine}
-          onSelectStop={handleSelectStop}
-        />
-
-        <SearchPanel onPickLine={handleSearchLine} onPickStop={handleSearchStop} />
-
-        {selectedLine && (
-          <LineCard line={selectedLine} onClose={() => handleSelectLine(null)} />
-        )}
-        {selectedStop && (
-          <StopCard
-            stop={selectedStop}
-            onPickLine={(id) => handleSelectLine(id)}
-            onClose={() => handleSelectStop(null)}
+        <Routes>
+          <Route index element={<TransitHome />} />
+          <Route
+            path="journey"
+            element={
+              <Suspense
+                fallback={
+                  <div className="app-route-loading">
+                    <span className="app-route-loading__spinner" />
+                  </div>
+                }
+              >
+                <JourneyPage />
+              </Suspense>
+            }
           />
-        )}
+        </Routes>
       </main>
 
       <footer className="tk-footer">
