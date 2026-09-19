@@ -1,0 +1,148 @@
+/* VisitKla Transit plugin styles. Everything is namespaced tk- so the
+   plugin can never collide with the classic app's class names, and it
+   reuses the classic theme's CSS variables (defined in styles/global.css)
+   so both modes read as one product. */
+
+/* ---------- mode toggle pill ---------- */
+
+/* Sits top-right: every other corner belongs to the classic app (back
+   button top-left, search FAB / recenter bottom-right, nav sheet
+   bottom-left). The cinematic ride covers it while playing — fine, that
+   mode is immersive by design. */
+.tk-mode-pill {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-orange-border);
+  background: var(--color-card);
+  color: var(--color-orange);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.tk-mode-pill:hover {
+  transform: translateY(-1px);
+  background: var(--color-orange-bg);
+}
+
+.tk-mode-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-orange);
+}
+
+.tk-mode-pill--transit {
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+
+.tk-mode-pill--transit .tk-mode-pill__dot {
+  background: var(--color-green);
+}
+
+/* ---------- transit app shell ---------- */
+
+.tk-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.tk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.tk-header__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.tk-header__subtitle {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-header__vintage {
+  vertical-align: 2px;
+  margin-left: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted-2);
+}
+
+.tk-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.tk-map-slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 107, 0, 0.07), transparent 55%),
+    radial-gradient(ellipse at 75% 80%, rgba(22, 163, 74, 0.06), transparent 55%),
+    var(--color-bg);
+}
+
+.tk-map-slot__inner {
+  max-width: 420px;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.tk-map-slot__headline {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.tk-map-slot__note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.tk-footer {
+  padding: 10px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.tk-footer p {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-muted-2);
+}
+
+.tk-footer a {
+  color: var(--color-muted);
+}
