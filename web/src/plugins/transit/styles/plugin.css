@@ -265,6 +265,114 @@
   color: var(--color-muted-2);
 }
 
+/* ---------- network search ---------- */
+
+.tk-search {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  width: min(360px, calc(100% - 24px));
+}
+
+.tk-search__input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.96);
+  color: var(--color-ink);
+  font-size: 13.5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  outline: none;
+}
+
+.tk-search__input::placeholder {
+  color: var(--color-muted-2);
+}
+
+.tk-search__input:focus {
+  border-color: var(--color-orange-border);
+}
+
+.tk-search__results {
+  margin-top: 6px;
+  max-height: min(320px, 46vh);
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.97);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.tk-search__section {
+  margin: 6px 8px 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-2);
+}
+
+.tk-search__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-search__item:hover {
+  background: var(--color-orange-bg);
+}
+
+.tk-search__code {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--color-orange);
+  color: #14120f;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.tk-search__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-green);
+}
+
+.tk-search__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-search__meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-muted-2);
+}
+
+.tk-search__empty {
+  margin: 8px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
 .tk-map-slot {
   flex: 1;
   display: flex;

@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { NetworkMap } from "./components/NetworkMap";
+import { NetworkMap, type FocusTarget } from "./components/NetworkMap";
 import { LineCard } from "./components/LineCard";
 import { StopCard } from "./components/StopCard";
+import { SearchPanel } from "./components/SearchPanel";
 import { getLine, stopByIndex } from "./lib/network";
 import "./styles/plugin.css";
 
@@ -12,6 +13,7 @@ import "./styles/plugin.css";
 export function TransitApp() {
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number | null>(null);
+  const [focus, setFocus] = useState<FocusTarget | null>(null);
 
   const handleSelectLine = useCallback((id: string | null) => {
     setSelectedLineId(id);
@@ -21,6 +23,18 @@ export function TransitApp() {
   const handleSelectStop = useCallback((idx: number | null) => {
     setSelectedStopIdx(idx);
     if (idx !== null) setSelectedLineId(null);
+  }, []);
+
+  const handleSearchLine = useCallback((id: string) => {
+    setSelectedStopIdx(null);
+    setSelectedLineId(id);
+    setFocus({ seq: Date.now(), kind: "line", idOrIdx: id });
+  }, []);
+
+  const handleSearchStop = useCallback((idx: number) => {
+    setSelectedLineId(null);
+    setSelectedStopIdx(idx);
+    setFocus({ seq: Date.now(), kind: "stop", idOrIdx: idx });
   }, []);
 
   const selectedLine = selectedLineId ? getLine(selectedLineId) : null;
@@ -45,9 +59,12 @@ export function TransitApp() {
       <main className="tk-main">
         <NetworkMap
           selectedLineId={selectedLineId}
+          focus={focus}
           onSelectLine={handleSelectLine}
           onSelectStop={handleSelectStop}
         />
+
+        <SearchPanel onPickLine={handleSearchLine} onPickStop={handleSearchStop} />
 
         {selectedLine && (
           <LineCard line={selectedLine} onClose={() => handleSelectLine(null)} />

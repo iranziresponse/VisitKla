@@ -87,6 +87,27 @@ export function networkBounds(): [[number, number], [number, number]] {
   ];
 }
 
+/** Bounding box of one line (union of its variants' shapes). */
+export function lineBounds(id: string): [[number, number], [number, number]] {
+  const line = getLine(id);
+  let w = 180;
+  let s = 90;
+  let e = -180;
+  let n = -90;
+  for (const v of line?.v ?? []) {
+    for (const [lat, lng] of v.shape) {
+      if (lng < w) w = lng;
+      if (lat < s) s = lat;
+      if (lng > e) e = lng;
+      if (lat > n) n = lat;
+    }
+  }
+  return [
+    [w, s],
+    [e, n],
+  ];
+}
+
 const BAND_LABELS: Record<string, string> = {
   night: "late night",
   am: "morning",
@@ -119,3 +140,41 @@ export const AGENCY_LABEL: Record<string, string> = {
   taxi: "Matatu (14-seater)",
   bus: "Bus",
 };
+
+/**
+ * Case-insensitive search over line codes and names. Starts-with matches
+ * rank ahead of contains, so "ka02" surfaces KA021-style codes first.
+ */
+export function searchLines(query: string, limit = 8): TransitLine[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const scored: Array<{ line: TransitLine; score: number }> = [];
+  for (const line of network.lines) {
+    const code = line.code.toLowerCase();
+    const name = line.name.toLowerCase();
+    let score = Infinity;
+    if (code.startsWith(q)) score = 0;
+    else if (code.includes(q)) score = 1;
+    else if (name.toLowerCase().startsWith(q)) score = 2;
+    else if (name.includes(q)) score = 3;
+    if (score < Infinity) scored.push({ line, score });
+  }
+  scored.sort((a, b) => a.score - b.score);
+  return scored.slice(0, limit).map((s) => s.line);
+}
+
+/** Search stage names; returns indices into network.stops. */
+export function searchStopIndices(query: string, limit = 8): number[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const scored: Array<{ idx: number; score: number }> = [];
+  for (let idx = 0; idx < network.stops.length; idx++) {
+    const n = network.stops[idx].n.toLowerCase();
+    let score = Infinity;
+    if (n.startsWith(q)) score = 0;
+    else if (n.includes(q)) score = 1;
+    if (score < Infinity) scored.push({ idx, score });
+  }
+  scored.sort((a, b) => a.score - b.score || a.idx - b.idx);
+  return scored.slice(0, limit).map((s) => s.idx);
+}

@@ -1,15 +1,23 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MlMap, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { network, networkBounds } from "../lib/network";
+import { lineBounds, network, networkBounds, stopByIndex } from "../lib/network";
 import "./NetworkMap.css";
 
 const TAXI_COLOR = "#ff6b00";
 const BUS_COLOR = "#38bdf8";
 const BASEMAP = "https://tiles.openfreemap.org/styles/liberty";
 
+/** Camera target; `seq` lets the same target retrigger a fly. */
+export interface FocusTarget {
+  seq: number;
+  kind: "line" | "stop";
+  idOrIdx: string | number;
+}
+
 interface NetworkMapProps {
   selectedLineId: string | null;
+  focus: FocusTarget | null;
   onSelectLine: (id: string | null) => void;
   onSelectStop: (stopIdx: number | null) => void;
 }
@@ -46,6 +54,7 @@ function buildStopFeatures(): GeoJSON.Feature[] {
  */
 export function NetworkMap({
   selectedLineId,
+  focus,
   onSelectLine,
   onSelectStop,
 }: NetworkMapProps) {
@@ -168,6 +177,22 @@ export function NetworkMap({
     map.setFilter("lines", ["==", ["get", "lid"], selected]);
     map.setFilter("lines-dimmed", ["!=", ["get", "lid"], selected]);
   }, [selectedLineId]);
+
+  // Fly the camera to whatever the app asked to focus (search pick etc.).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus) return;
+    if (focus.kind === "line") {
+      map.fitBounds(lineBounds(String(focus.idOrIdx)), {
+        padding: 70,
+        duration: 900,
+        maxZoom: 13,
+      });
+    } else {
+      const stop = stopByIndex(Number(focus.idOrIdx));
+      map.flyTo({ center: [stop.lng, stop.lat], zoom: 15, duration: 900 });
+    }
+  }, [focus]);
 
   return <div className="tk-network-map" ref={containerRef} />;
 }
