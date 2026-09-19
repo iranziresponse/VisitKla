@@ -95,9 +95,174 @@
 }
 
 .tk-main {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
+}
+
+/* ---------- selection cards (line / stage) ---------- */
+
+.tk-card {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  width: min(360px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.96);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.tk-card__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tk-card__close:hover {
+  background: var(--color-orange-bg);
+  color: var(--color-orange);
+}
+
+.tk-card__eyebrow {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-2);
+}
+
+.tk-card__title {
+  margin: 0 24px 10px 0;
+  font-size: 15.5px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.tk-card__sub {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-code-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  border-radius: 6px;
+  background: var(--color-orange);
+  color: #14120f;
+  font-size: 12.5px;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+.tk-card__stats {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.tk-stat__value {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tk-stat__label {
+  font-size: 11px;
+  color: var(--color-muted-2);
+}
+
+.tk-card__headways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tk-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.tk-chip--line {
+  border-color: var(--color-orange-border);
+  color: var(--color-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tk-chip--line:hover {
+  background: var(--color-orange-bg);
+}
+
+.tk-chip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tk-card__dirs {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.tk-card__dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-card__dir-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-green);
+  flex-shrink: 0;
+}
+
+.tk-card__dir-arrow {
+  color: var(--color-muted-2);
+}
+
+.tk-card__note {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  color: var(--color-muted-2);
 }
 
 .tk-map-slot {

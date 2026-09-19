@@ -1,12 +1,31 @@
+import { useCallback, useState } from "react";
+import { NetworkMap } from "./components/NetworkMap";
+import { LineCard } from "./components/LineCard";
+import { StopCard } from "./components/StopCard";
+import { getLine, stopByIndex } from "./lib/network";
 import "./styles/plugin.css";
 
 /**
  * Transit plugin root — mounted at /transit/* and lazily loaded, so the
  * classic app never downloads a byte of this tree unless it's visited.
- * Phase 0 scaffold: the network map, journey planner and line browser
- * slot into the layout below as they land.
  */
 export function TransitApp() {
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [selectedStopIdx, setSelectedStopIdx] = useState<number | null>(null);
+
+  const handleSelectLine = useCallback((id: string | null) => {
+    setSelectedLineId(id);
+    setSelectedStopIdx(null);
+  }, []);
+
+  const handleSelectStop = useCallback((idx: number | null) => {
+    setSelectedStopIdx(idx);
+    if (idx !== null) setSelectedLineId(null);
+  }, []);
+
+  const selectedLine = selectedLineId ? getLine(selectedLineId) : null;
+  const selectedStop = selectedStopIdx !== null ? stopByIndex(selectedStopIdx) : null;
+
   return (
     <div className="tk-app">
       <header className="tk-header">
@@ -24,16 +43,22 @@ export function TransitApp() {
       </header>
 
       <main className="tk-main">
-        <div className="tk-map-slot">
-          <div className="tk-map-slot__inner">
-            <p className="tk-map-slot__headline">The network is arriving</p>
-            <p className="tk-map-slot__note">
-              All 397 taxi &amp; bus lines with real stage stops load here in the
-              next build — journey planner, line browser and stage departures
-              follow right after.
-            </p>
-          </div>
-        </div>
+        <NetworkMap
+          selectedLineId={selectedLineId}
+          onSelectLine={handleSelectLine}
+          onSelectStop={handleSelectStop}
+        />
+
+        {selectedLine && (
+          <LineCard line={selectedLine} onClose={() => handleSelectLine(null)} />
+        )}
+        {selectedStop && (
+          <StopCard
+            stop={selectedStop}
+            onPickLine={(id) => handleSelectLine(id)}
+            onClose={() => handleSelectStop(null)}
+          />
+        )}
       </main>
 
       <footer className="tk-footer">
