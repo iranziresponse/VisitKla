@@ -43,6 +43,10 @@ classic app (`web/src/App.tsx`) through clearly marked blocks.
 
 ## Notes
 
+- Lines are an internal planning concept: the user-facing UI (the
+  /transit planner) never shows them. `/transit/network` is the raw
+  lines-and-stages inspector kept for development and support — reachable
+  by URL only, with no links from the app.
 - The plugin reads (never modifies) the classic app's
   `web/src/lib/rideStyle.ts` so its maps use the exact same photoreal
   basemap as the world/navigation maps. Deleting the plugin removes the

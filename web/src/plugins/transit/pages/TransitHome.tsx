@@ -5,7 +5,11 @@ import { StopCard } from "../components/StopCard";
 import { SearchPanel } from "../components/SearchPanel";
 import { getLine, stopByIndex } from "../lib/network";
 
-/** /transit — the whole-network explorer (map, search, line/stage cards). */
+/**
+ * /transit/network — INTERNAL network inspector (map, search, line/stage
+ * cards). Deliberately not linked from any user-facing UI: riders think
+ * in places and stages, not lines. Kept for development and support.
+ */
 export function TransitHome() {
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [selectedStopIdx, setSelectedStopIdx] = useState<number | null>(null);

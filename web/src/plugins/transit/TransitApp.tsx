@@ -1,4 +1,4 @@
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { TransitHome } from "./pages/TransitHome";
 import { JourneyPage } from "./pages/JourneyPage";
 import "./styles/plugin.css";
@@ -7,14 +7,13 @@ import "./styles/plugin.css";
  * Transit plugin root — mounted at /transit/* and lazily loaded, so the
  * classic app never downloads a byte of this tree unless it's visited.
  *
- * The journey planner is the front door (/transit): enter where you are
- * and where you're going, get a route. The whole-network explorer lives
- * one tap away at /transit/network.
+ * The journey planner IS the product surface: enter where you are and
+ * where you're going, get a route. Lines are an internal planning
+ * concept and never appear in this UI — /transit/network (the raw
+ * lines-and-stages explorer) stays mounted as an internal inspector for
+ * development and support, reachable by URL only, with no links here.
  */
 export function TransitApp() {
-  const location = useLocation();
-  const onPlanner = !location.pathname.includes("/network");
-
   return (
     <div className="tk-app">
       <header className="tk-header">
@@ -26,17 +25,10 @@ export function TransitApp() {
             </span>
           </h1>
           <p className="tk-header__subtitle">
-            {onPlanner
-              ? "Matatu routes across Kampala — enter where you're going"
-              : "Kampala's real matatu network — every line, every stage"}
+            Tell us where you're going — we'll find the stages, fares and
+            walks
           </p>
         </div>
-        <Link
-          to={onPlanner ? "network" : "journey"}
-          className="tk-header__cta"
-        >
-          {onPlanner ? "Explore lines" : "Plan a journey"}
-        </Link>
       </header>
 
       <main className="tk-main">
