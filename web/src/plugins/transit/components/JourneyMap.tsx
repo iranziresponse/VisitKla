@@ -1,7 +1,7 @@
 import maplibregl, { type Map as MlMap, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { stopByIndex } from "../lib/network";
+import { shapeBetween, stopByIndex } from "../lib/network";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
 import type { Journey, Place } from "../lib/planner";
@@ -48,10 +48,16 @@ function journeyFeatures(journey: Journey) {
       lons.push(leg.from.lng, leg.to.lng);
       lats.push(leg.from.lat, leg.to.lat);
     } else {
-      const coords = leg.stopIdxs.map((i) => {
-        const st = stopByIndex(i);
-        return [st.lng, st.lat] as [number, number];
-      });
+      // Ride legs follow the feed's surveyed shape — the actual corridor a
+      // matatu takes — cut between the board and alight stages. Straight
+      // stop-to-stop segments are only the fallback when projection fails.
+      const shape = shapeBetween(leg.variant, leg.stopIdxs);
+      const coords = shape
+        ? shape.map(([lat, lng]) => [lng, lat] as [number, number])
+        : leg.stopIdxs.map((i) => {
+            const st = stopByIndex(i);
+            return [st.lng, st.lat] as [number, number];
+          });
       ride.push({
         type: "Feature",
         properties: { agency: leg.line.agency },
@@ -111,9 +117,9 @@ function directFeatures(direct: DirectRoute) {
  * The planner's persistent map. With nothing selected it's simply the
  * photoreal city view (same style + tilted camera as the classic app).
  * A matatu journey draws as walk legs (dashed) plus agency-colored ride
- * legs over dark casings; a simple route (boda / car / bike / walk)
- * draws as a single dashed straight line with endpoint dots. Clears
- * back to the city view when the selection does.
+ * legs that follow the feed's surveyed shape; a simple route (boda / car
+ * / bike / walk) draws as a dashed line along the street network with
+ * endpoint dots. Clears back to the city view when the selection does.
  */
 export function JourneyMap({
   journey,

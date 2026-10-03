@@ -87,6 +87,66 @@ export function networkBounds(): [[number, number], [number, number]] {
   ];
 }
 
+function dist2(ax: number, ay: number, bx: number, by: number): number {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return dx * dx + dy * dy;
+}
+
+function nearestVertex(
+  shape: [number, number][],
+  lat: number,
+  lng: number,
+  from: number,
+  to: number
+): number {
+  let best = from;
+  let bestD = Infinity;
+  for (let i = from; i <= to; i++) {
+    const d = dist2(shape[i][0], shape[i][1], lat, lng);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/**
+ * The portion of a variant's shape one ride leg actually covers: the shape
+ * vertices between where the board and alight stages project onto the
+ * polyline. Returns [lat, lng] points (data space — the map flips them),
+ * or null when the stages don't resolve and the caller should fall back
+ * to straight stop-to-stop segments.
+ */
+export function shapeBetween(v: LineVariant, stopIdxs: number[]): [number, number][] | null {
+  if (v.shape.length < 2 || stopIdxs.length < 2) return null;
+  const board = stopIdxs[0];
+  const alight = stopIdxs[stopIdxs.length - 1];
+  // A loop route can visit a stage twice — use the occurrence pair that
+  // brackets the shortest stretch, which is the one the planner rode.
+  let i0 = -1;
+  let i1 = -1;
+  let span = Infinity;
+  for (let f = 0; f < v.stops.length - 1; f++) {
+    if (v.stops[f] !== board) continue;
+    for (let t = f + 1; t < v.stops.length; t++) {
+      if (v.stops[t] === alight && t - f < span) {
+        span = t - f;
+        i0 = f;
+        i1 = t;
+      }
+    }
+  }
+  if (i0 === -1) return null;
+  const b = stopByIndex(board);
+  const v0 = nearestVertex(v.shape, b.lat, b.lng, i0, i1);
+  const a = stopByIndex(alight);
+  const v1 = nearestVertex(v.shape, a.lat, a.lng, v0, i1);
+  if (v1 <= v0) return null;
+  return v.shape.slice(v0, v1 + 1);
+}
+
 /** Bounding box of one line (union of its variants' shapes). */
 export function lineBounds(id: string): [[number, number], [number, number]] {
   const line = getLine(id);
