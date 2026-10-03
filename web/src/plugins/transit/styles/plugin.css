@@ -64,12 +64,16 @@
    the map's colors bloom through them and shift as the camera moves.
    Heavy blur + saturation + a brightness lift keeps that backdrop soft
    and light enough for dark text; a diagonal sheen and a white edge do
-   the refraction work. Glass scopes re-declare the theme tokens, so
-   everything inside flips to a dark-on-light ramp automatically and the
-   accent darkens to a WCAG-safe burnt sienna for text, badges and focus
-   rings (pure #ff6b00 stays only as a fill, under dark text). The ramp
-   is tuned for the glass at its murkiest — minimum ~0.68 white coverage
-   over shadowed ground keeps every text token at 4.5:1 or better. */
+   the refraction work. Non-interactive surfaces run thinner (alpha .5);
+   controls that carry text keep more body (.55-.62). Glass scopes
+   re-declare the theme tokens, so everything inside flips to a
+   dark-on-light ramp automatically and the accent darkens to a WCAG-safe
+   burnt sienna for text, badges and focus rings (pure #ff6b00 stays only
+   as a fill, under dark text). Raised elements inside a card are LIGHT
+   chips (white tint), which add body under text instead of subtracting
+   it. The ramp is tuned for the glass at its murkiest — minimum ~0.56
+   white coverage over shadowed ground keeps every text token at 4.5:1
+   or better. */
 .tk-journey__panel,
 .tk-mode-pill {
   --tk-sheen: linear-gradient(
@@ -78,15 +82,24 @@
     rgba(255, 255, 255, 0.06) 42%,
     rgba(255, 255, 255, 0.16)
   );
+  --tk-glass-alpha: 0.5;
   --color-ink: #171310;
-  --color-muted: #38322a;
-  --color-muted-2: #3f3931;
+  --color-muted: #2e2921;
+  --color-muted-2: #302b24;
   --color-border: rgba(20, 18, 16, 0.14);
   --color-card: rgba(255, 255, 255, 0.5);
-  --color-card-raised: rgba(20, 18, 16, 0.06);
+  --color-card-raised: rgba(255, 255, 255, 0.35);
   --color-orange: #7a2509;
   --color-orange-bg: rgba(255, 107, 0, 0.15);
   --color-orange-border: rgba(122, 37, 9, 0.5);
+}
+
+.tk-mode-pill {
+  --tk-glass-alpha: 0.62;
+}
+
+.tk-journey__form {
+  --tk-glass-alpha: 0.55;
 }
 
 .tk-mode-pill,
@@ -96,7 +109,7 @@
 .tk-journey__empty,
 .tk-journey__stretch,
 .tk-place__list {
-  background: var(--tk-sheen, none), rgba(243, 242, 238, 0.62);
+  background: var(--tk-sheen, none), rgba(243, 242, 238, var(--tk-glass-alpha, 0.5));
   -webkit-backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
   backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -104,6 +117,10 @@
     0 12px 36px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     inset 0 -1px 0 rgba(20, 18, 16, 0.06);
+}
+
+.tk-place__list {
+  --tk-glass-alpha: 0.84;
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -481,10 +498,13 @@
   cursor: pointer;
   padding: 2px 0;
   margin-bottom: 8px;
+  transition: color 0.15s ease;
 }
 
 .tk-back:hover {
   color: var(--color-orange);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .tk-journey__form {
@@ -508,15 +528,20 @@
   color: var(--color-ink);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .tk-place__input::placeholder {
   color: var(--color-muted-2);
 }
 
+.tk-place__input:hover:not(:focus) {
+  border-color: rgba(20, 18, 16, 0.28);
+}
+
 .tk-place__input:focus {
   border-color: var(--color-orange-border);
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.25);
 }
 
 .tk-place__list {
@@ -546,7 +571,8 @@
   cursor: pointer;
 }
 
-.tk-place__item:hover {
+.tk-place__item:hover,
+.tk-place__item:focus-visible {
   background: var(--color-orange-bg);
 }
 
@@ -586,6 +612,19 @@
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tk-go:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 107, 0, 0.35);
+}
+
+.tk-go:active:not(:disabled) {
+  filter: brightness(0.97);
+  transform: translateY(0.5px);
+  box-shadow: none;
 }
 
 .tk-swap {
@@ -665,7 +704,7 @@
   border-radius: 12px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--color-orange);
+  color: var(--color-muted);
 }
 
 /* The scroll region under the search card — individual route cards float
@@ -704,12 +743,21 @@
   border-radius: 12px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
-.tk-route:hover {
+.tk-route:hover,
+.tk-route:focus-visible {
   border-color: var(--color-orange-border);
   transform: translateY(-1px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(30px) saturate(2) brightness(1.16);
+  backdrop-filter: blur(30px) saturate(2) brightness(1.16);
 }
 
 .tk-route__icon {
@@ -799,9 +847,15 @@
 
 .tk-journey__summary {
   margin: 4px 0 12px;
-  display: flex;
+  /* a light chip under the accent text: it adds body on the deep glass
+     so the burnt sienna stays at 4.5:1 over the murkiest backdrop */
+  display: inline-flex;
   align-items: baseline;
   gap: 12px;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
   font-size: 13.5px;
   font-weight: 700;
   color: var(--color-orange);
@@ -895,11 +949,23 @@
   padding: 6px 9px;
   border-radius: 8px;
   background: rgba(22, 163, 74, 0.16);
-  color: #14532d;
+  /* deep green keeps 4.5:1 over the green tint on deep glass */
+  color: #082e18;
   font-size: 11.5px;
 }
 
 .tk-journey__report {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(122, 37, 9, 0.5);
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tk-journey__report:hover {
+  background: var(--color-orange-bg);
   color: var(--color-orange);
 }
 
@@ -991,7 +1057,7 @@
   background: transparent;
 }
 
-.tk-app :is(button, a, input, [tabindex]):focus-visible {
+.tk-app :is(button, a, [tabindex]):focus-visible {
   outline: 2px solid var(--color-orange);
   outline-offset: 2px;
 }
