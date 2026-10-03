@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PlaceInput } from "../components/PlaceInput";
 import { JourneyMap } from "../components/JourneyMap";
 import {
@@ -7,9 +7,11 @@ import {
   BikeIcon,
   BusIcon,
   CarIcon,
+  ChevronDownIcon,
   ClockIcon,
   CoinIcon,
   MotorbikeIcon,
+  SearchIcon,
   SwapIcon,
   TransfersIcon,
   WalkIcon,
@@ -141,6 +143,19 @@ export function JourneyPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [simpleSelected, setSimpleSelected] = useState<SimpleMode | null>(null);
   const [buildings3d, setBuildings3d] = useState(false);
+  // Mobile map-focus: with a route open, tapping the map collapses the
+  // floating cards into two thin pills; tapping either restores them.
+  const [mapFocus, setMapFocus] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia("(max-width: 720px)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const canSearch = from !== null && to !== null;
 
@@ -166,6 +181,7 @@ export function JourneyPage() {
     setPending(true);
     setSelected(null);
     setSimpleSelected(null);
+    setMapFocus(false);
     // let the pending state paint before the synchronous compute
     window.setTimeout(() => {
       const r = planJourney(from, to, { when: new Date() });
@@ -190,6 +206,12 @@ export function JourneyPage() {
 
   const journey = selected !== null && result ? result.journeys[selected] : null;
   const simpleRoute = simpleSelected ? simpleRoutes.find((r) => r.mode === simpleSelected) ?? null : null;
+
+  const collapsed = mapFocus && isMobile && (journey !== null || simpleRoute !== null);
+  function openRoute(open: () => void) {
+    open();
+    setMapFocus(false);
+  }
   const detail = journey ? (
     <TaxiDetail journey={journey} onBack={() => setSelected(null)} />
   ) : simpleRoute && from && to ? (
@@ -218,11 +240,58 @@ export function JourneyPage() {
           journey={journey}
           direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
           buildings={buildings3d}
+          onMapClick={() => {
+            if (isMobile && (journey !== null || simpleRoute !== null)) setMapFocus(true);
+          }}
         />
       </div>
 
-      <div className="tk-journey__panel">
-        <div className="tk-journey__form">
+      <div className={`tk-journey__panel${collapsed ? " tk-mapfocus" : ""}`}>
+        {collapsed ? (
+          <>
+            <button
+              type="button"
+              className="tk-pillbtn"
+              onClick={() => setMapFocus(false)}
+              aria-label="Expand search"
+            >
+              <SearchIcon size={16} />
+              <span className="tk-pillbtn__label">
+                {from!.name} to {to!.name}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="tk-pillbtn tk-pillbtn--route"
+              onClick={() => setMapFocus(false)}
+              aria-label="Expand the selected route"
+            >
+              {journey ? (
+                <>
+                  <BusIcon size={16} />
+                  <span className="tk-pillbtn__label">
+                    <span>{journey.totalMinutes} min</span>
+                    <span>{formatUgx(journey.fare)}</span>
+                    {journey.transfers > 0 && (
+                      <span>{journey.transfers} transfer{journey.transfers > 1 ? "s" : ""}</span>
+                    )}
+                  </span>
+                </>
+              ) : simpleRoute ? (
+                <>
+                  {simpleIcon(simpleRoute.mode, 16)}
+                  <span className="tk-pillbtn__label">
+                    <span>{simpleRoute.label}</span>
+                    <span>~{simpleRoute.minutes} min</span>
+                  </span>
+                </>
+              ) : null}
+              <ChevronDownIcon size={16} className="tk-pillbtn__chev" />
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="tk-journey__form">
           <PlaceInput
             placeholder="Your location, or type a place"
             value={from}
@@ -265,8 +334,8 @@ export function JourneyPage() {
                   card={card}
                   badges={badges}
                   onOpen={() => {
-                    if (card.kind === "taxi") setSelected(card.index);
-                    else setSimpleSelected(card.route.mode);
+                    if (card.kind === "taxi") openRoute(() => setSelected(card.index));
+                    else openRoute(() => setSimpleSelected(card.route.mode));
                   }}
                 />
               ))}
@@ -281,6 +350,8 @@ export function JourneyPage() {
         )}
 
         {detail}
+          </>
+        )}
       </div>
     </div>
   );

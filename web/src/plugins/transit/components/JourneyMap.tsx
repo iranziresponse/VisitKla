@@ -149,15 +149,24 @@ export function JourneyMap({
   journey,
   direct,
   buildings = false,
+  onMapClick,
 }: {
   journey: Journey | null;
   direct?: DirectRoute | null;
   /** 3D rooftop blocks — the pill toggles it; defaults to flat imagery. */
   buildings?: boolean;
+  /** Fired on a genuine map tap (maplibre's click — drags don't count). */
+  onMapClick?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
+  // Latest tap handler — the map binds "click" once at mount.
+  const mapClickRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    mapClickRef.current = onMapClick ?? null;
+  }, [onMapClick]);
   // Selection epoch — async street-path upgrades check it before drawing,
   // so an answer that lands after the user picked something else is dropped.
   const routeToken = useRef(0);
@@ -186,6 +195,7 @@ export function JourneyMap({
         attributionControl: false,
       });
       mapRef.current = map;
+      map.on("click", () => mapClickRef.current?.());
       map.addControl(
         new maplibregl.AttributionControl({
           customAttribution:
