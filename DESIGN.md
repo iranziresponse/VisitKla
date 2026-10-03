@@ -48,10 +48,12 @@ spacing:
   lg: "16px"
 components:
   route-card:
-    backgroundColor: "{colors.stage-card}"
+    backgroundColor: "rgba(26, 23, 19, 0.75) + backdrop blur(18px) saturate(1.35)"
+    borderColor: "rgba(255, 240, 220, 0.13)"
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
     padding: "12px"
+    shadow: "0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 240, 220, 0.09)"
   route-card-hover:
     borderColor: "{colors.signal-orange-edge}"
   primary-button:
@@ -65,7 +67,7 @@ components:
     rounded: "{rounded.chip}"
     padding: "2px 8px"
   badge-neutral:
-    backgroundColor: "{colors.stage-card-raised}"
+    backgroundColor: "rgba(255, 240, 220, 0.07)"
     textColor: "{colors.ink-muted}"
     rounded: "{rounded.chip}"
     padding: "2px 8px"
@@ -86,8 +88,10 @@ loud by nature, stays the visual center.
 Tokens live in `web/src/styles/global.css` (`:root`) and are shared by both
 app modes; the transit plugin consumes them and never redefines them.
 
-- Ground: `night-bg` for the app, `stage-card` for surfaces,
-  `stage-card-raised` for nested elements (icon chips, badges, callouts).
+- Ground: `night-bg` behind the map; floating surfaces use the shared
+  warm glass fill (see Elevation) instead of solid cards; translucent
+  raised fills `rgba(255,240,220,.05-.08)` for nested elements (icon
+  chips, badges, step rows).
 - Text: `ink` primary, `ink-muted` secondary, `ink-faint` tertiary/meta.
 - Accent: `signal-orange` for the primary action, fastest badge, selected
   route geometry, and alight markers. Never used as large fills.
@@ -104,17 +108,26 @@ stage counts align. Sizes cluster at 10.5 / 11.5 / 12.5-13 / 16 / 18px.
 
 ## Layout
 
-Desktop (over 720px): split view, form-and-results panel on the left
-(~460px), the map fills the rest. At or below 720px: the panel becomes a
-bottom sheet (max-height 62%) over the map. Spacing moves on an 8px rhythm
-(4/8/12/16); more space above a group than inside it.
+The satellite map is the interface; there is no header, sidebar or footer.
+Everything floats over the full-bleed map as individual glass cards in a
+left column (392px): the search card top, route results one card each
+below it, the step detail as one tall card. The column container is
+click-transparent so the map stays draggable in the gaps. At or below
+720px: the search card stays top, the route stack hugs the bottom of the
+screen like a sheet (max-height 55vh, bottom-anchored, each card still
+floating). Spacing moves on an 8px rhythm (4/8/12/16).
 
 ## Elevation & Depth
 
-Shadows are ambient and dark-tinted (`0 4px 16px rgba(0,0,0,.45)` for the
-floating pill, `0 12px 36px rgba(0,0,0,.45)` for floating cards over the
-map), paired with a subtle `backdrop-filter: blur(10px)` on cards that
-float over imagery. In-panel content uses borders, not shadows.
+One glass material for everything that floats over imagery: warm dark
+fill `rgba(26,23,19,.75)` with `backdrop-filter: blur(18px) saturate(1.35)`,
+a 1px light-warm border `rgba(255,240,220,.13)`, an inset top highlight,
+and the ambient shadow `0 12px 36px rgba(0,0,0,.45)`. Dropdowns thicken to
+`.88` for small text. Under `prefers-reduced-transparency` the fill goes
+near-solid and the blur switches off. Content inside a card separates with
+borders and hairlines, never nested cards. The basemap's vector roads are
+faded to 0.38 opacity so the imagery leads and the selected route
+(solid orange, 4.5px over a dark casing) reads instantly.
 
 ## Shapes
 
@@ -124,18 +137,21 @@ step uses a dashed border to feel provisional.
 
 ## Components
 
-- Mode pill (fixed top-right): text-only, `stage-card` background,
-  orange text/border in story mode, muted in transit mode.
-- Place input: 12px radius, hairline border; the suggestions dropdown
-  carries type badges (`stage`, `mall`, `area`) and a muted context line.
-- Route card: icon chip (38px, raised surface, inline SVG), time in 800,
-  mode name muted, gap-separated meta spans (no separator dots), badges
-  right-aligned on the top row. `Fastest` is the only accent badge.
-- Step row: leading badge (orange chip for vehicles, dashed outline for
-  walk, raised for point-to-point modes) + body; alight line separated by
-  a hairline.
-- Honest-notes callout: raised surface, 8px radius, muted text; carries
-  estimate caveats and data-vintage notes.
+- Mode pill (fixed top-right): text-only glass, orange text/border in
+  story mode, ink text in transit mode.
+- Search card (floating, glass): the two place inputs and the orange
+  search button; the swap button sits between the fields when both are
+  set. Suggestions dropdown is thicker glass with type badges (`stage`,
+  `mall`, `area`) and a muted context line.
+- Route card (one per route, floating glass): icon chip (38px, raised
+  translucent surface, inline SVG), time in 800, mode name muted,
+  gap-separated meta spans (no separator dots), badges right-aligned on
+  the top row. `Fastest` is the only accent badge.
+- Step detail (one floating glass card): back link, orange summary line,
+  step rows as translucent raised callouts (8px radius, dashed outline for
+  walk), honesty footnote in muted text at the bottom.
+- Honest-notes callout: hairline-separated muted text inside the detail
+  card; carries estimate caveats and data-vintage notes.
 
 ## Do's and Don'ts
 
