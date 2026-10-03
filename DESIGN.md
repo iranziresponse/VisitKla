@@ -117,9 +117,11 @@ Everything floats over the full-bleed map as individual glass cards in a
 left column (392px): the search card top, route results one card each
 below it, the step detail as one tall card. The column container is
 click-transparent so the map stays draggable in the gaps. At or below
-720px: the search card stays top, the route stack hugs the bottom of the
-screen like a sheet (max-height 55vh, bottom-anchored, each card still
-floating). Spacing moves on an 8px rhythm (4/8/12/16).
+720px: the search card folds into a single pill by default (it expands
+on tap and folds back on any interaction outside it), the route stack
+hugs the bottom of the screen like a sheet (max-height 55vh,
+bottom-anchored, each card still floating). Spacing moves on an 8px
+rhythm (4/8/12/16).
 
 ## Elevation & Depth
 
@@ -177,6 +179,10 @@ step uses a dashed border to feel provisional.
   search button; the swap button sits between the fields when both are
   set. Suggestions dropdown is thicker frost with type badges (`stage`,
   `mall`, `area`) and a muted context line.
+- Folded search pill (mobile): the resting form on phones — one 44px
+  glass pill, search icon + label ("Search routes", or the picked pair
+  once set). Tapping it expands the form; any interaction outside it, or
+  Escape, folds it straight back. Shares the pill hover/focus treatment.
 - Route card (one per route, floating glass): icon chip (38px, raised
   translucent surface, inline SVG), time in 800, mode name muted,
   gap-separated meta spans (no separator dots), badges right-aligned on
@@ -194,6 +200,9 @@ step uses a dashed border to feel provisional.
   share the route-card hover/focus treatment.
 - Honest-notes callout: hairline-separated muted text inside the detail
   card; carries estimate caveats and data-vintage notes.
+- Favicon (site mark): orange rounded tile with a white map pin, shipped
+  as an inline SVG injected at runtime — the site's index.html is never
+  touched, and deleting the plugin removes the mark with it.
 
 ## Do's and Don'ts
 
