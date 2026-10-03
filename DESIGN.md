@@ -124,23 +124,43 @@ floating). Spacing moves on an 8px rhythm (4/8/12/16).
 ## Elevation & Depth
 
 One glass material for everything that floats over imagery, and it must
-behave like glass: base `rgba(243,242,238,.62)` under a diagonal white
+behave like glass: base `rgba(243,242,238, α)` under a diagonal white
 sheen gradient, `backdrop-filter: blur(30px) saturate(1.8)
-brightness(1.08)` so the map's colors bloom through, a white refractive
-edge `rgba(255,255,255,.55)`, an inset top highlight, and the ambient
-shadow `0 12px 36px rgba(0,0,0,.28)`. Glass scopes re-declare the theme
-tokens, so everything inside flips to a dark text ramp (ink `#171310`,
-muted `#38322a`, faint `#3f3931`) and the accent text darkens to burnt
-`#7a2509` — derived against the murkiest backdrop (minimum ~0.68 white
-coverage over shadowed ground), every token ≥4.5:1. Pure `#ff6b00` is a
-fill only (search button, vehicle badges, route lines), always under
-dark text. Dropdowns thicken to `.88`. Under
-`prefers-reduced-transparency` the fill goes near-solid and the blur
-switches off. Content inside a card separates with borders and
-hairlines, never nested cards. The basemap's vector roads are faded to
-0.38 opacity and the 3D rooftop blocks default to off (the "3D blocks"
-pill flips them), so the imagery leads and the selected route (solid
-orange, 4.5px over a dark casing) reads instantly.
+brightness(1.08)`, a white refractive edge `rgba(255,255,255,.55)`, an
+inset top highlight, and the ambient shadow `0 12px 36px rgba(0,0,0,.28)`.
+Alpha follows the surface: content surfaces are thinnest (route cards,
+detail, note chips .5), the form card .55, controls that carry text keep
+body (pills .62, suggestions dropdown .88). The map must read through the
+content surfaces — never raise their alpha until it looks like paint.
+Glass scopes re-declare the theme tokens, so everything inside flips to
+a dark text ramp (ink `#171310`, muted `#2e2921`, faint `#302b24`) and
+the accent text darkens to burnt `#7a2509` — derived against the
+murkiest backdrop (minimum ~0.56 white coverage over shadowed ground),
+every token ≥4.5:1. Raised elements inside a card are light white chips
+(they add body under text); the summary line sits in one. Pure `#ff6b00`
+is a fill only (search button, vehicle badges, route lines), always
+under dark text. Under `prefers-reduced-transparency` the fill goes
+near-solid and the blur switches off. Content inside a card separates
+with borders and hairlines, never nested cards. The basemap's vector
+roads are faded to 0.38 opacity and the 3D rooftop blocks default to off
+(the "3D blocks" pill flips them).
+
+## States
+
+Hover and focus are the same gesture at different intensities, always
+authored, never browser-default:
+
+- Route cards: hover and `:focus-visible` both lift 1px, deepen the
+  shadow, pick up the burnt-orange edge and brighten their own glass
+  (backdrop saturate 2 / brightness 1.16).
+- Search button: hover lifts with a warm glow; active presses back down.
+- Inputs: hover darkens the border; focus shows the burnt-orange border
+  plus a soft orange ring (the global focus outline deliberately skips
+  inputs to avoid double framing).
+- Suggestion rows mirror their hover tint under `:focus-visible`.
+- Text links rest as underlined ink and tint orange on hover.
+- Buttons and links keep the global 2px `:focus-visible` outline;
+  `prefers-reduced-motion` freezes all transitions.
 
 ## Shapes
 
