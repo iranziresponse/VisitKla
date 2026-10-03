@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { searchStopIndices, stopByIndex } from "../lib/network";
-import { geocodePlace } from "../lib/geocode";
+import { geocodePlace, type GeocodeHit } from "../lib/geocode";
 import type { Place } from "../lib/planner";
 
 interface PlaceInputProps {
@@ -14,12 +14,15 @@ interface PlaceInputProps {
 interface Option {
   place: Place;
   meta?: string;
+  /** muted disambiguator, e.g. "Kisementi, Kampala" */
+  sub?: string;
 }
 
 /**
  * From/To field for the journey planner: searches the bundled stages and
- * live Nominatim results in one list, plus a "Your location" row when
- * allowed. Picking fills the field with a concrete Place.
+ * live geocoded places (any POI, street or neighbourhood in Kampala) in
+ * one list, plus a "Your location" row when allowed. Picking fills the
+ * field with a concrete Place.
  */
 export function PlaceInput({
   placeholder,
@@ -60,12 +63,13 @@ export function PlaceInput({
     debounceRef.current = window.setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
-      const places = await geocodePlace(needle, controller.signal);
+      const hits: GeocodeHit[] = await geocodePlace(needle, controller.signal);
       const known = new Set(stageOptions.map((o) => o.place.name.toLowerCase()));
       setOptions(
-        places
-          .filter((p) => !known.has(p.name.toLowerCase()))
-          .map((p) => ({ place: p }))
+        hits
+          .filter((h) => !known.has(h.place.name.toLowerCase()))
+          .slice(0, 6)
+          .map((h) => ({ place: h.place, meta: h.meta, sub: h.context }))
       );
       setBusy(false);
     }, 350);
@@ -146,7 +150,9 @@ export function PlaceInput({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(o.place)}
             >
-              {o.place.name}
+              {o.meta && <span className="tk-place__meta-badge">{o.meta}</span>}
+              <span className="tk-place__name">{o.place.name}</span>
+              {o.sub && <span className="tk-place__sub">{o.sub}</span>}
             </button>
           ))}
           {busy && <p className="tk-place__hint">Searching…</p>}
