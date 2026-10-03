@@ -21,3 +21,7 @@ ios/
 # rip). Only the processed, actually-shipped files under web/public/assets
 # belong in the repo.
 web/reference-assets/
+
+# Impeccable design-tool state: review screenshots and sidecar; DESIGN.md
+# itself is committed. Regenerate .impeccable/ by re-running the review.
+.impeccable/
