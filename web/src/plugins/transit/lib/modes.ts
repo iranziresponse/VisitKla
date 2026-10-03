@@ -3,9 +3,12 @@ import { estimateBoda } from "./boda";
 
 /**
  * Straightforward point-to-point estimates for the non-taxi modes. There
- * is no street routing engine behind these (the $0 constraint), so every
- * figure is a straight-line distance with a detour factor and a
+ * is no street routing engine behind these numbers (the $0 constraint),
+ * so every figure is a straight-line distance with a detour factor and a
  * Kampala-realistic effective speed, and the UI says so.
+ *
+ * The map overlay is separate: lib/roadRoute.ts traces street paths for
+ * drawing only — none of it feeds back into these estimates.
  *
  * Fares are draft estimates in the same spirit as boda.ts: base + per-km,
  * rounded, shown as a range, never presented as a quote.

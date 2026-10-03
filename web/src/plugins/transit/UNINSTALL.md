@@ -53,6 +53,12 @@ classic app (`web/src/App.tsx`) through clearly marked blocks.
   import, so there is nothing to clean up there; if you ever rename that
   file, only the two imports under `web/src/plugins/transit/components/`
   need updating.
+- Runtime external calls, all keyless and free, all failing soft when
+  unreachable: place search (Photon, fallback Nominatim) and street
+  geometry for map lines (OSRM demo server for cars/bodas, FOSSGIS
+  Valhalla for bicycles/pedestrians). There are no API keys or env vars
+  anywhere, so deleting the plugin leaves nothing to revoke; requests
+  stop the moment the code is gone.
 - The `visitkla:mode` localStorage key the toggle writes is harmless once
   the plugin is gone; no cleanup needed (browsers evict it with site data).
 - If this file and the plugin are both present, these steps are canonical —
