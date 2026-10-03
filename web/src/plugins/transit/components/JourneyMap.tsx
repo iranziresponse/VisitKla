@@ -36,6 +36,16 @@ function quietRoads(style: any) {
   }
 }
 
+/** Same layer id rideStyle.ts styles — not exported, so mirrored here. */
+const BUILDING_LAYER_ID = "building-3d";
+
+/** The 3D rooftops default to off; the style still carries the layer so
+ * the pill can flip its visibility instantly, no style rebuild. */
+function applyBuildings(style: any, visible: boolean) {
+  const layer = (style.layers ?? []).find((l: any) => l.id === BUILDING_LAYER_ID);
+  if (layer) layer.layout = { ...layer.layout, visibility: visible ? "visible" : "none" };
+}
+
 export interface DirectRoute {
   from: Place;
   to: Place;
@@ -138,9 +148,12 @@ function directFeatures(direct: DirectRoute) {
 export function JourneyMap({
   journey,
   direct,
+  buildings = false,
 }: {
   journey: Journey | null;
   direct?: DirectRoute | null;
+  /** 3D rooftop blocks — the pill toggles it; defaults to flat imagery. */
+  buildings?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -161,6 +174,7 @@ export function JourneyMap({
     buildRideStyle({ buildings: true, satellite: true }).then((style) => {
       if (cancelled || !containerRef.current) return;
       quietRoads(style);
+      applyBuildings(style, buildings);
 
       map = new maplibregl.Map({
         container: containerRef.current,
@@ -409,6 +423,15 @@ export function JourneyMap({
       );
     });
   }, [journey, direct, ready]);
+
+  // 3D blocks toggle — a pure visibility flip, no style rebuild.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (map.getLayer(BUILDING_LAYER_ID)) {
+      map.setLayoutProperty(BUILDING_LAYER_ID, "visibility", buildings ? "visible" : "none");
+    }
+  }, [buildings, ready]);
 
   return (
     <div className="tk-journey-map-wrap">

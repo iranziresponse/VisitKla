@@ -34,17 +34,52 @@
 }
 
 .tk-mode-pill--transit {
-  border-color: rgba(255, 240, 220, 0.13);
+  border-color: rgba(20, 18, 16, 0.12);
   color: var(--color-ink);
+}
+
+/* the 3D-blocks toggle sits to the left of the mode pill (its "Story
+   Mode" label is the widest the mode pill ever gets in transit mode) */
+.tk-mode-pill--3d {
+  right: calc(140px + env(safe-area-inset-right, 0px));
+}
+
+/* pressed state: the burnt-orange text is WCAG-safe but quiet, so the
+   tint fill and border carry the "on" signal */
+.tk-mode-pill--3d:not(.tk-mode-pill--transit) {
+  background: rgba(255, 107, 0, 0.16);
+  border-color: rgba(138, 46, 15, 0.55);
+}
+
+@media (max-width: 720px) {
+  .tk-mode-pill--3d {
+    top: calc(58px + env(safe-area-inset-top, 0px));
+    right: calc(14px + env(safe-area-inset-right, 0px));
+  }
 }
 
 /* ---------- glass: surfaces floating over live imagery ---------- */
 
-/* Warm dark glass, not gray frost — the panels stay in the night
-   palette while the map glows through. Listed once here so every
-   floating surface shares one material; later component rules tune
-   individual properties. Reduced-transparency users get near-solid
-   surfaces instead of the blur. */
+/* Light frost, almost white: the panels read as a bright sheet over the
+   imagery. Glass scopes re-declare the theme tokens, so every rule inside
+   them flips to dark-on-light automatically and the accent darkens to a
+   WCAG-safe burnt orange for text, badges and focus rings (pure #ff6b00
+   stays only as a fill, under dark text). The ramp is tuned for the
+   frost at its murkiest — 0.84 alpha over shadowed ground keeps every
+   text token at 4.5:1 or better. */
+.tk-journey__panel,
+.tk-mode-pill {
+  --color-ink: #1f1a15;
+  --color-muted: #4f483f;
+  --color-muted-2: #5d564b;
+  --color-border: rgba(20, 18, 16, 0.12);
+  --color-card: rgba(255, 255, 255, 0.6);
+  --color-card-raised: rgba(20, 18, 16, 0.05);
+  --color-orange: #8a2e0f;
+  --color-orange-bg: rgba(255, 107, 0, 0.14);
+  --color-orange-border: rgba(138, 46, 15, 0.45);
+}
+
 .tk-mode-pill,
 .tk-journey__form,
 .tk-route,
@@ -52,13 +87,13 @@
 .tk-journey__empty,
 .tk-journey__stretch,
 .tk-place__list {
-  background: rgba(26, 23, 19, 0.75);
+  background: rgba(247, 246, 243, 0.84);
   -webkit-backdrop-filter: blur(18px) saturate(1.35);
   backdrop-filter: blur(18px) saturate(1.35);
-  border: 1px solid rgba(255, 240, 220, 0.13);
+  border: 1px solid rgba(20, 18, 16, 0.1);
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 240, 220, 0.09);
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -69,7 +104,7 @@
   .tk-journey__empty,
   .tk-journey__stretch,
   .tk-place__list {
-    background: rgba(26, 23, 19, 0.99);
+    background: rgba(247, 246, 243, 0.99);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -458,8 +493,8 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 240, 220, 0.14);
-  background: rgba(255, 240, 220, 0.07);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
   color: var(--color-ink);
   font-size: 13px;
   outline: none;
@@ -483,7 +518,7 @@
   padding: 6px;
   border-radius: 12px;
   /* dropdowns carry small text over bright ground — more body than cards */
-  background: rgba(26, 23, 19, 0.88);
+  background: rgba(247, 246, 243, 0.92);
 }
 
 .tk-place__item {
@@ -534,7 +569,9 @@
   padding: 11px;
   border: none;
   border-radius: 12px;
-  background: var(--color-orange);
+  /* the pure signal orange survives as a fill only — dark text on it
+     passes contrast; the scoped token flip must not darken this fill */
+  background: #ff6b00;
   color: #14120f;
   font-size: 14px;
   font-weight: 800;
@@ -588,7 +625,7 @@
 .tk-simple__notes {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 240, 220, 0.1);
+  border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -672,8 +709,8 @@
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 240, 220, 0.14);
-  background: rgba(255, 240, 220, 0.07);
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
   color: var(--color-ink);
 }
 
@@ -722,8 +759,8 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 240, 220, 0.14);
-  background: rgba(255, 240, 220, 0.07);
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
   color: var(--color-muted);
   font-size: 10.5px;
   font-weight: 700;
@@ -777,8 +814,8 @@
   gap: 10px;
   padding: 11px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 240, 220, 0.1);
-  background: rgba(255, 240, 220, 0.05);
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--color-ink);
@@ -801,7 +838,8 @@
   min-width: 46px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: var(--color-orange);
+  /* pure orange fill, dark label — same guard as the search button */
+  background: #ff6b00;
   color: #14120f;
   font-size: 11px;
   font-weight: 800;
@@ -816,8 +854,8 @@
 }
 
 .tk-step__badge--mode {
-  background: rgba(255, 240, 220, 0.08);
-  border: 1px solid rgba(255, 240, 220, 0.14);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border);
   color: var(--color-ink);
 }
 
@@ -846,8 +884,8 @@
   margin-top: 6px;
   padding: 6px 9px;
   border-radius: 8px;
-  background: var(--color-green-dark);
-  color: #e8f5ec;
+  background: rgba(22, 163, 74, 0.16);
+  color: #14532d;
   font-size: 11.5px;
 }
 

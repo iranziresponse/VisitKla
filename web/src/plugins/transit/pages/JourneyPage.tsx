@@ -139,6 +139,7 @@ export function JourneyPage() {
   } | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [simpleSelected, setSimpleSelected] = useState<SimpleMode | null>(null);
+  const [buildings3d, setBuildings3d] = useState(false);
 
   const canSearch = from !== null && to !== null;
 
@@ -183,10 +184,21 @@ export function JourneyPage() {
 
   return (
     <div className="tk-journey">
+      <button
+        type="button"
+        className={`tk-mode-pill tk-mode-pill--3d${buildings3d ? "" : " tk-mode-pill--transit"}`}
+        onClick={() => setBuildings3d((v) => !v)}
+        aria-pressed={buildings3d}
+        title={buildings3d ? "Hide the 3D buildings" : "Show the 3D buildings"}
+      >
+        3D blocks
+      </button>
+
       <div className="tk-journey__map">
         <JourneyMap
           journey={journey}
           direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
+          buildings={buildings3d}
         />
       </div>
 
