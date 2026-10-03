@@ -113,38 +113,25 @@ function nearestVertex(
 }
 
 /**
- * The portion of a variant's shape one ride leg actually covers: the shape
- * vertices between where the board and alight stages project onto the
- * polyline. Returns [lat, lng] points (data space — the map flips them),
- * or null when the stages don't resolve and the caller should fall back
- * to straight stop-to-stop segments.
+ * The portion of a variant's shape one ride leg actually covers. Every
+ * stop the leg rides is projected onto the polyline and the covered span
+ * is the min-to-max vertex range — the stops travel the stretch in order,
+ * so their projections bracket it. Returns [lat, lng] points (data space
+ * — the map flips them), or null when the projection fails and the caller
+ * should fall back to straight stop-to-stop segments.
  */
 export function shapeBetween(v: LineVariant, stopIdxs: number[]): [number, number][] | null {
   if (v.shape.length < 2 || stopIdxs.length < 2) return null;
-  const board = stopIdxs[0];
-  const alight = stopIdxs[stopIdxs.length - 1];
-  // A loop route can visit a stage twice — use the occurrence pair that
-  // brackets the shortest stretch, which is the one the planner rode.
-  let i0 = -1;
-  let i1 = -1;
-  let span = Infinity;
-  for (let f = 0; f < v.stops.length - 1; f++) {
-    if (v.stops[f] !== board) continue;
-    for (let t = f + 1; t < v.stops.length; t++) {
-      if (v.stops[t] === alight && t - f < span) {
-        span = t - f;
-        i0 = f;
-        i1 = t;
-      }
-    }
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const idx of stopIdxs) {
+    const s = stopByIndex(idx);
+    const i = nearestVertex(v.shape, s.lat, s.lng, 0, v.shape.length - 1);
+    if (i < lo) lo = i;
+    if (i > hi) hi = i;
   }
-  if (i0 === -1) return null;
-  const b = stopByIndex(board);
-  const v0 = nearestVertex(v.shape, b.lat, b.lng, i0, i1);
-  const a = stopByIndex(alight);
-  const v1 = nearestVertex(v.shape, a.lat, a.lng, v0, i1);
-  if (v1 <= v0) return null;
-  return v.shape.slice(v0, v1 + 1);
+  if (!Number.isFinite(lo) || hi <= lo) return null;
+  return v.shape.slice(lo, hi + 1);
 }
 
 /** Bounding box of one line (union of its variants' shapes). */
