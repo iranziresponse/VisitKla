@@ -1,0 +1,8 @@
+{
+  "$comment": "The one external input of the whole pipeline: the DT4A / Transport for Cairo Kampala GTFS feed (Mobility Database mdb-1813). sha256 is pinned so a silent upstream change can't sneak into the bundle — bump it deliberately after reviewing a new download.",
+  "url": "https://gitlab.com/digitaltransport/data/africa/kampala/-/raw/master/GTFS/GTFS.zip",
+  "minBytes": 1000000,
+  "sha256": "c9471c3d5eef87914a54edd87b7e88118457f5a173c21f8ccac356b1dcf5339e",
+  "license": "CC-BY-3.0",
+  "vintage": "fieldwork 2019/2020, feed version 1.15042020"
+}

@@ -23,6 +23,14 @@ const RidePage = lazy(() =>
   import("./pages/RidePage").then((m) => ({ default: m.RidePage }))
 );
 
+// ===== TRANSIT PLUGIN (to uninstall: delete web/src/plugins/ + pipeline/, then
+// remove this marked block — step-by-step in plugins/transit/UNINSTALL.md) =====
+const TransitApp = lazy(() =>
+  import("./plugins/transit/TransitApp").then((m) => ({ default: m.TransitApp }))
+);
+import { ModeToggle } from "./plugins/transit/ModeToggle";
+// ==============================================================================
+
 function RouteFallback() {
   return (
     <div className="app-route-loading">
@@ -45,8 +53,14 @@ export function App() {
             path="/route/:routeId/navigate/:mode"
             element={<NavigationPage />}
           />
+          {/* ===== TRANSIT PLUGIN (see block above) ===== */}
+          <Route path="/transit/*" element={<TransitApp />} />
+          {/* ============================================= */}
         </Routes>
       </Suspense>
+      {/* ===== TRANSIT PLUGIN (see block above) ===== */}
+      <ModeToggle />
+      {/* ============================================= */}
     </BrowserRouter>
   );
 }

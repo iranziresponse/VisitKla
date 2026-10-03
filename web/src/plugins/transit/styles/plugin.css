@@ -1,0 +1,1165 @@
+/* VisitKla Transit plugin styles. Everything is namespaced tk- so the
+   plugin can never collide with the classic app's class names, and it
+   reuses the classic theme's CSS variables (defined in styles/global.css)
+   so both modes read as one product. */
+
+/* ---------- mode toggle pill ---------- */
+
+/* Sits top-right: every other corner belongs to the classic app (back
+   button top-left, search FAB / recenter bottom-right, nav sheet
+   bottom-left). The cinematic ride covers it while playing — fine, that
+   mode is immersive by design. */
+.tk-mode-pill {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-orange-border);
+  color: var(--color-orange);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.tk-mode-pill:hover {
+  transform: translateY(-1px);
+  background: var(--color-orange-bg);
+}
+
+.tk-mode-pill--transit {
+  border-color: rgba(20, 18, 16, 0.12);
+  color: var(--color-ink);
+}
+
+/* the 3D-blocks toggle sits to the left of the mode pill (its "Story
+   Mode" label is the widest the mode pill ever gets in transit mode) */
+.tk-mode-pill--3d {
+  right: calc(140px + env(safe-area-inset-right, 0px));
+}
+
+/* pressed state: the burnt-orange text is WCAG-safe but quiet, so the
+   tint fill and border carry the "on" signal */
+.tk-mode-pill--3d:not(.tk-mode-pill--transit) {
+  background: var(--tk-sheen, none), rgba(255, 107, 0, 0.2);
+  border-color: rgba(122, 37, 9, 0.55);
+}
+
+@media (max-width: 720px) {
+  .tk-mode-pill--3d {
+    top: calc(58px + env(safe-area-inset-top, 0px));
+    right: calc(14px + env(safe-area-inset-right, 0px));
+  }
+}
+
+/* ---------- glass: surfaces floating over live imagery ---------- */
+
+/* Real glass, not frosted paint: the panels are genuinely translucent so
+   the map's colors bloom through them and shift as the camera moves.
+   Heavy blur + saturation + a brightness lift keeps that backdrop soft
+   and light enough for dark text; a diagonal sheen and a white edge do
+   the refraction work. Non-interactive surfaces run thinner (alpha .5);
+   controls that carry text keep more body (.55-.62). Glass scopes
+   re-declare the theme tokens, so everything inside flips to a
+   dark-on-light ramp automatically and the accent darkens to a WCAG-safe
+   burnt sienna for text, badges and focus rings (pure #ff6b00 stays only
+   as a fill, under dark text). Raised elements inside a card are LIGHT
+   chips (white tint), which add body under text instead of subtracting
+   it. The ramp is tuned for the glass at its murkiest — minimum ~0.56
+   white coverage over shadowed ground keeps every text token at 4.5:1
+   or better. */
+.tk-journey__panel,
+.tk-mode-pill {
+  --tk-sheen: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42),
+    rgba(255, 255, 255, 0.06) 42%,
+    rgba(255, 255, 255, 0.16)
+  );
+  --tk-glass-alpha: 0.5;
+  --color-ink: #171310;
+  --color-muted: #2e2921;
+  --color-muted-2: #302b24;
+  --color-border: rgba(20, 18, 16, 0.14);
+  --color-card: rgba(255, 255, 255, 0.5);
+  --color-card-raised: rgba(255, 255, 255, 0.35);
+  --color-orange: #7a2509;
+  --color-orange-bg: rgba(255, 107, 0, 0.15);
+  --color-orange-border: rgba(122, 37, 9, 0.5);
+}
+
+.tk-mode-pill {
+  --tk-glass-alpha: 0.62;
+}
+
+.tk-journey__form {
+  --tk-glass-alpha: 0.55;
+}
+
+.tk-mode-pill,
+.tk-journey__form,
+.tk-route,
+.tk-journey__detail,
+.tk-journey__empty,
+.tk-journey__stretch,
+.tk-pillbtn,
+.tk-place__list {
+  background: var(--tk-sheen, none), rgba(243, 242, 238, var(--tk-glass-alpha, 0.5));
+  -webkit-backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(20, 18, 16, 0.06);
+}
+
+.tk-place__list {
+  --tk-glass-alpha: 0.84;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tk-mode-pill,
+  .tk-journey__form,
+  .tk-route,
+  .tk-journey__detail,
+  .tk-journey__empty,
+  .tk-journey__stretch,
+  .tk-pillbtn,
+  .tk-place__list {
+    background: rgba(243, 242, 238, 0.98);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---------- mobile map-focus: two thin pills over the map ---------- */
+
+/* With a route open, tapping the map collapses the UI into a search pill
+   up top and a route pill at the bottom; tapping either restores the
+   full cards. Desktop ignores the state entirely. */
+.tk-pillbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-ink);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.tk-pillbtn:hover,
+.tk-pillbtn:focus-visible {
+  border-color: var(--color-orange-border);
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(30px) saturate(2) brightness(1.16);
+  backdrop-filter: blur(30px) saturate(2) brightness(1.16);
+}
+
+.tk-pillbtn__label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tk-pillbtn__label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-pillbtn__chev {
+  flex: none;
+  transform: rotate(180deg);
+  color: var(--color-muted-2);
+}
+
+.tk-mapfocus .tk-pillbtn--route {
+  margin-top: auto;
+}
+
+@media (max-width: 720px) {
+  /* keep collapsed search labels clear of the mode pill (map-focus pills
+     and the resting folded search pill share the pill's top band) */
+  .tk-journey__panel .tk-pillbtn:not(.tk-pillbtn--route) {
+    padding-right: 128px;
+  }
+
+  /* the form expands from the search pill on phones only; a short settle
+     keeps the swap from reading as a flash (reduced-motion kills it below) */
+  .tk-journey__form {
+    animation: tk-form-in 0.16s ease-out;
+  }
+}
+
+@keyframes tk-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- transit app shell ---------- */
+
+.tk-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.tk-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---------- selection cards (line / stage) ---------- */
+
+.tk-card {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  width: min(360px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.96);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.tk-card__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tk-card__close:hover {
+  background: var(--color-orange-bg);
+  color: var(--color-orange);
+}
+
+.tk-card__eyebrow {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-2);
+}
+
+.tk-card__title {
+  margin: 0 24px 10px 0;
+  font-size: 15.5px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.tk-card__sub {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-code-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  border-radius: 6px;
+  background: var(--color-orange);
+  color: #14120f;
+  font-size: 12.5px;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+.tk-card__stats {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.tk-stat__value {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tk-stat__label {
+  font-size: 11px;
+  color: var(--color-muted-2);
+}
+
+.tk-card__headways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tk-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.tk-chip--line {
+  border-color: var(--color-orange-border);
+  color: var(--color-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tk-chip--line:hover {
+  background: var(--color-orange-bg);
+}
+
+.tk-chip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tk-card__dirs {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.tk-card__dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-card__dir-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-green);
+  flex-shrink: 0;
+}
+
+.tk-card__dir-arrow {
+  color: var(--color-muted-2);
+}
+
+.tk-card__note {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  color: var(--color-muted-2);
+}
+
+.tk-card__departures {
+  margin-top: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.tk-card__departures-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-green);
+}
+
+.tk-card__departure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.tk-card__departure-code {
+  min-width: 52px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+/* ---------- network search ---------- */
+
+.tk-search {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  width: min(360px, calc(100% - 24px));
+}
+
+.tk-search__input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.96);
+  color: var(--color-ink);
+  font-size: 13.5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  outline: none;
+}
+
+.tk-search__input::placeholder {
+  color: var(--color-muted-2);
+}
+
+.tk-search__input:focus {
+  border-color: var(--color-orange-border);
+}
+
+.tk-search__results {
+  margin-top: 6px;
+  max-height: min(320px, 46vh);
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 27, 23, 0.97);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.tk-search__section {
+  margin: 6px 8px 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-2);
+}
+
+.tk-search__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-search__item:hover {
+  background: var(--color-orange-bg);
+}
+
+.tk-search__code {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--color-orange);
+  color: #14120f;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.tk-search__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-green);
+}
+
+.tk-search__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-search__meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-muted-2);
+}
+
+.tk-search__empty {
+  margin: 8px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+/* ---------- header CTA ---------- */
+
+/* ---------- journey planner ---------- */
+
+.tk-journey {
+  position: absolute;
+  inset: 0;
+}
+
+.tk-journey__map {
+  position: absolute;
+  inset: 0;
+}
+
+/* The floating column over the map. The container itself never catches
+   clicks — only the glass cards do — so the map stays draggable in the
+   gaps between them. */
+.tk-journey__panel {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 30;
+  width: 392px;
+  max-width: calc(100% - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.tk-journey__panel > * {
+  pointer-events: auto;
+}
+
+.tk-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 12px 5px 9px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.tk-back:hover {
+  color: var(--color-orange);
+  background: var(--color-orange-bg);
+  border-color: var(--color-orange-border);
+}
+
+.tk-journey__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.tk-place {
+  position: relative;
+}
+
+.tk-place__input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.tk-place__input::placeholder {
+  color: var(--color-muted-2);
+}
+
+.tk-place__input:hover:not(:focus) {
+  border-color: rgba(20, 18, 16, 0.28);
+}
+
+.tk-place__input:focus {
+  border-color: var(--color-orange-border);
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.25);
+}
+
+.tk-place__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 6px;
+  border-radius: 12px;
+  /* dropdowns carry small text over bright ground — more body than cards */
+  background: var(--tk-sheen, none), rgba(243, 242, 238, 0.88);
+}
+
+.tk-place__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-place__item:hover,
+.tk-place__item:focus-visible {
+  background: var(--color-orange-bg);
+}
+
+.tk-place__meta-badge {
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  color: var(--color-muted-2);
+  flex: none;
+}
+
+.tk-place__sub {
+  margin-left: auto;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--color-muted-2);
+}
+
+.tk-place__hint {
+  margin: 6px 10px;
+  font-size: 11.5px;
+  color: var(--color-muted-2);
+}
+
+.tk-go {
+  padding: 11px;
+  border: none;
+  border-radius: 12px;
+  /* the pure signal orange survives as a fill only — dark text on it
+     passes contrast; the scoped token flip must not darken this fill */
+  background: #ff6b00;
+  color: #14120f;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tk-go:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 107, 0, 0.35);
+}
+
+.tk-go:active:not(:disabled) {
+  filter: brightness(0.97);
+  transform: translateY(0.5px);
+  box-shadow: none;
+}
+
+.tk-swap {
+  align-self: flex-end;
+  margin: -4px 6px;
+  padding: 5px;
+  display: inline-flex;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted-2);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tk-swap:hover {
+  color: var(--color-orange);
+  background: var(--color-orange-bg);
+}
+
+/* ---------- simple-mode detail (boda / car / bike / walk) ---------- */
+
+.tk-simple__hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.tk-simple__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tk-simple__facts {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-simple__notes {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.tk-simple__notes p {
+  margin: 0;
+}
+
+.tk-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tk-journey__empty {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.tk-journey__stretch {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* The scroll region under the search card — individual route cards float
+   in it, each with its own glass material. */
+.tk-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.tk-journey__detail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 12px;
+}
+
+/* ---------- routes list (all modes, time-ranked) ---------- */
+
+.tk-routes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px;
+}
+
+.tk-route {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.tk-route:hover,
+.tk-route:focus-visible {
+  border-color: var(--color-orange-border);
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(30px) saturate(2) brightness(1.16);
+  backdrop-filter: blur(30px) saturate(2) brightness(1.16);
+}
+
+.tk-route__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-ink);
+}
+
+.tk-route__icon--big {
+  width: 44px;
+  height: 44px;
+}
+
+.tk-route__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tk-route__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tk-route__time {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tk-route__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.tk-route__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tk-badge--accent {
+  background: var(--color-orange-bg);
+  border-color: var(--color-orange-border);
+  color: var(--color-orange);
+}
+
+.tk-route__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--color-muted-2);
+}
+
+.tk-journey__detail {
+  margin-top: 12px;
+}
+
+.tk-journey__summary {
+  margin: 4px 0 12px;
+  /* a light chip under the accent text: it adds body on the deep glass
+     so the burnt sienna stays at 4.5:1 over the murkiest backdrop */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-orange);
+}
+
+/* ---------- route steps (turn-by-turn, transit style) ---------- */
+
+.tk-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tk-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.tk-step--walk {
+  border-style: dashed;
+}
+
+.tk-step--walk .tk-step__body {
+  color: var(--color-muted);
+}
+
+.tk-step__badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 46px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  /* pure orange fill, dark label — same guard as the search button */
+  background: #ff6b00;
+  color: #14120f;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.tk-step__badge--walk {
+  background: transparent;
+  border: 1.5px dashed var(--color-muted-2);
+  color: var(--color-muted-2);
+}
+
+.tk-step__badge--mode {
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-ink);
+}
+
+.tk-step__body {
+  flex: 1;
+}
+
+.tk-step__meta {
+  margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.tk-step__alight {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.tk-step__boda {
+  margin-top: 6px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.16);
+  /* deep green keeps 4.5:1 over the green tint on deep glass */
+  color: #082e18;
+  font-size: 11.5px;
+}
+
+.tk-journey__report {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(122, 37, 9, 0.5);
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tk-journey__report:hover {
+  background: var(--color-orange-bg);
+  color: var(--color-orange);
+}
+
+/* the honesty footnote reads over glass, not a solid card */
+.tk-journey__detail .tk-card__note {
+  color: var(--color-muted);
+}
+
+/* map loading veil — shared by both plugin maps, matching the classic
+   app's world-map loading treatment (spinner until tiles have painted) */
+.tk-map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--color-bg);
+}
+
+.tk-map-loading__spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-orange);
+  animation: tk-spin 0.9s linear infinite;
+}
+
+@keyframes tk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 720px) {
+  .tk-journey__panel {
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    width: auto;
+    max-width: none;
+    gap: 8px;
+  }
+
+  /* Search stays up top; the route stack hugs the bottom of the screen
+     like a sheet, but every card still floats on its own glass. */
+  .tk-results,
+  .tk-journey__detail {
+    flex: 0 1 auto;
+    margin-top: auto;
+    max-height: 55vh;
+  }
+
+  /* keep the first field's text clear of the floating mode pill */
+  .tk-journey__form .tk-place:first-of-type .tk-place__input {
+    padding-right: 122px;
+  }
+}
+
+/* ---------- craft floor: browser chrome & states ---------- */
+
+/* Shape system: pills 999 · cards & controls 12 · inner callouts 8 ·
+   tiny chips 6. One accent (orange); green only for semantic state. */
+.tk-app {
+  font-variant-numeric: tabular-nums;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.tk-app ::selection {
+  background: rgba(255, 107, 0, 0.32);
+  color: var(--color-ink);
+}
+
+.tk-app ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tk-app ::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.tk-app ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tk-app :is(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 2px;
+}
+
+.tk-app button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-app *,
+  .tk-mode-pill {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
