@@ -48,34 +48,34 @@ spacing:
   lg: "16px"
 components:
   route-card:
-    backgroundColor: "rgba(247, 246, 243, 0.84) + backdrop blur(18px) saturate(1.35)"
-    borderColor: "rgba(20, 18, 16, 0.1)"
-    textColor: "#1f1a15"
+    backgroundColor: "sheen gradient over rgba(243, 242, 238, 0.62) + backdrop blur(30px) saturate(1.8) brightness(1.08)"
+    borderColor: "rgba(255, 255, 255, 0.55)"
+    textColor: "#171310"
     rounded: "{rounded.card}"
     padding: "12px"
-    shadow: "0 12px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6)"
+    shadow: "0 12px 36px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.85)"
   route-card-hover:
-    borderColor: "rgba(138, 46, 15, 0.45)"
+    borderColor: "rgba(122, 37, 9, 0.5)"
   primary-button:
     backgroundColor: "#ff6b00"
     textColor: "#14120f"
     rounded: "{rounded.card}"
     padding: "11px"
   badge-accent:
-    backgroundColor: "rgba(255, 107, 0, 0.14)"
-    textColor: "#8a2e0f"
+    backgroundColor: "rgba(255, 107, 0, 0.15)"
+    textColor: "#7a2509"
     rounded: "{rounded.chip}"
     padding: "2px 8px"
   badge-neutral:
-    backgroundColor: "rgba(20, 18, 16, 0.05)"
-    textColor: "#4f483f"
+    backgroundColor: "rgba(20, 18, 16, 0.06)"
+    textColor: "#38322a"
     rounded: "{rounded.chip}"
     padding: "2px 8px"
   buildings-pill:
     text: "3D blocks"
     position: "left of the mode pill (stacked under it on mobile)"
-    offState: "muted ink text, hairline border"
-    onState: "rgba(255, 107, 0, 0.16) tint fill, burnt-orange border and text, aria-pressed=true"
+    offState: "muted ink text, glass edge"
+    onState: "orange tint fill under the sheen, burnt-orange border and text, aria-pressed=true"
 ---
 
 # VisitKla Design System
@@ -123,21 +123,24 @@ floating). Spacing moves on an 8px rhythm (4/8/12/16).
 
 ## Elevation & Depth
 
-One glass material for everything that floats over imagery: near-white
-frost `rgba(247,246,243,.84)` with `backdrop-filter: blur(18px)
-saturate(1.35)`, a 1px dark hairline `rgba(20,18,16,.1)`, an inset white
-top highlight, and the ambient shadow `0 12px 36px rgba(0,0,0,.35)`.
-Glass scopes re-declare the theme tokens, so everything inside flips to
-a dark text ramp (ink `#1f1a15`, muted `#4f483f`, faint `#5d564b` — all
-≥4.5:1 at the frost's murkiest) and the accent darkens to burnt
-`#8a2e0f` for text, badges and focus rings. Pure `#ff6b00` is a fill
-only (search button, vehicle badges), always under dark text.
-Dropdowns thicken to `.92`. Under `prefers-reduced-transparency` the
-fill goes near-solid and the blur switches off. Content inside a card
-separates with borders and hairlines, never nested cards. The basemap's
-vector roads are faded to 0.38 opacity and the 3D rooftop blocks default
-to off (the "3D blocks" pill flips them), so the imagery leads and the
-selected route (solid orange, 4.5px over a dark casing) reads instantly.
+One glass material for everything that floats over imagery, and it must
+behave like glass: base `rgba(243,242,238,.62)` under a diagonal white
+sheen gradient, `backdrop-filter: blur(30px) saturate(1.8)
+brightness(1.08)` so the map's colors bloom through, a white refractive
+edge `rgba(255,255,255,.55)`, an inset top highlight, and the ambient
+shadow `0 12px 36px rgba(0,0,0,.28)`. Glass scopes re-declare the theme
+tokens, so everything inside flips to a dark text ramp (ink `#171310`,
+muted `#38322a`, faint `#3f3931`) and the accent text darkens to burnt
+`#7a2509` — derived against the murkiest backdrop (minimum ~0.68 white
+coverage over shadowed ground), every token ≥4.5:1. Pure `#ff6b00` is a
+fill only (search button, vehicle badges, route lines), always under
+dark text. Dropdowns thicken to `.88`. Under
+`prefers-reduced-transparency` the fill goes near-solid and the blur
+switches off. Content inside a card separates with borders and
+hairlines, never nested cards. The basemap's vector roads are faded to
+0.38 opacity and the 3D rooftop blocks default to off (the "3D blocks"
+pill flips them), so the imagery leads and the selected route (solid
+orange, 4.5px over a dark casing) reads instantly.
 
 ## Shapes
 
