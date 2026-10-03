@@ -143,6 +143,23 @@ export function JourneyPage() {
 
   const canSearch = from !== null && to !== null;
 
+  // Clearing a field (the inputs do this on focus, inviting a re-pick)
+  // invalidates everything computed from the old pair — keeping the
+  // results around would render journeys for places that no longer apply.
+  function clearFrom() {
+    setFrom(null);
+    setResult(null);
+    setSelected(null);
+    setSimpleSelected(null);
+  }
+
+  function clearTo() {
+    setTo(null);
+    setResult(null);
+    setSelected(null);
+    setSimpleSelected(null);
+  }
+
   function search() {
     if (!from || !to) return;
     setPending(true);
@@ -166,7 +183,8 @@ export function JourneyPage() {
   }
 
   const simpleRoutes = from && to ? estimateAllSimple(from, to) : [];
-  const cards = result ? buildCards(result.journeys, simpleRoutes, haversine(from!, to!)) : [];
+  const cards =
+    result && from && to ? buildCards(result.journeys, simpleRoutes, haversine(from, to)) : [];
   const badges = badgeKeys(cards);
 
   const journey = selected !== null && result ? result.journeys[selected] : null;
@@ -208,7 +226,7 @@ export function JourneyPage() {
             placeholder="Your location, or type a place"
             value={from}
             onPick={setFrom}
-            onClear={() => setFrom(null)}
+            onClear={clearFrom}
             allowLocation
           />
           {from && to && (
@@ -220,7 +238,7 @@ export function JourneyPage() {
             placeholder="Where are you going?"
             value={to}
             onPick={setTo}
-            onClear={() => setTo(null)}
+            onClear={clearTo}
           />
           <button className="tk-go" onClick={search} disabled={!canSearch || pending}>
             {pending ? "Finding routes…" : "Show me the route"}
