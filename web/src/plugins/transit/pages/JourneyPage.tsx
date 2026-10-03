@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { PlaceInput } from "../components/PlaceInput";
 import { JourneyMap } from "../components/JourneyMap";
 import {
+  ArrowLeftIcon,
   ArrowRightIcon,
   BikeIcon,
   BusIcon,
@@ -384,14 +385,21 @@ function formatUgxRange(min: number, max: number): string {
   return `UGX ${min.toLocaleString("en-UG")}-${max.toLocaleString("en-UG")}`;
 }
 
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="tk-back" onClick={onClick}>
+      <ArrowLeftIcon size={15} />
+      <span>All routes</span>
+    </button>
+  );
+}
+
 function TaxiDetail({ journey, onBack }: { journey: Journey; onBack: () => void }) {
   // A "0 m walk" step is pure noise when the stage sits on the spot.
   const legs = journey.legs.filter((l) => !(l.kind === "walk" && l.meters < 30));
   return (
     <div className="tk-journey__detail">
-      <button className="tk-back" onClick={onBack}>
-        ← All routes
-      </button>
+      <BackButton onClick={onBack} />
       <div className="tk-journey__summary">
         <span>{journey.totalMinutes} min</span>
         <span>{formatUgx(journey.fare)}</span>
@@ -468,9 +476,7 @@ function SimpleDetail({
 
   return (
     <div className="tk-journey__detail">
-      <button className="tk-back" onClick={onBack}>
-        ← All routes
-      </button>
+      <BackButton onClick={onBack} />
       <div className="tk-simple__hero">
         <span className="tk-route__icon tk-route__icon--big">{simpleIcon(route.mode, 22)}</span>
         <div>

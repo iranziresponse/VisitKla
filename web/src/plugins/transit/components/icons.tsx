@@ -139,3 +139,30 @@ export function ArrowRightIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12l14 0" />
+      <path d="M11 18l-6 -6" />
+      <path d="M11 6l-6 6" />
+    </Icon>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+      <path d="M21 21l-6 -6" />
+    </Icon>
+  );
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 9l6 6l6 -6" />
+    </Icon>
+  );
+}
