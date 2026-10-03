@@ -183,6 +183,13 @@ export function JourneyPage() {
 
   return (
     <div className="tk-journey">
+      <div className="tk-journey__map">
+        <JourneyMap
+          journey={journey}
+          direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
+        />
+      </div>
+
       <div className="tk-journey__panel">
         <div className="tk-journey__form">
           <PlaceInput
@@ -220,7 +227,6 @@ export function JourneyPage() {
 
         {result && cards.length > 0 && !detail && !pending && (
           <div className="tk-results">
-            <p className="tk-results__label">Routes</p>
             <div className="tk-routes">
               {cards.map((card) => (
                 <RouteCardButton
@@ -244,13 +250,6 @@ export function JourneyPage() {
         )}
 
         {detail}
-      </div>
-
-      <div className="tk-journey__map">
-        <JourneyMap
-          journey={journey}
-          direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
-        />
       </div>
     </div>
   );

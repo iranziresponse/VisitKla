@@ -7,7 +7,13 @@ import "./styles/plugin.css";
  * Transit plugin root — mounted at /transit/* and lazily loaded, so the
  * classic app never downloads a byte of this tree unless it's visited.
  *
- * The journey planner IS the product surface: enter where you are and
+ * The satellite map IS the interface: no header, no footer — search,
+ * routes and steps float over the imagery as glass cards, and the only
+ * chrome is the mode pill (rendered by the classic app's router seam).
+ * Data attributions ship through the map's attribution control; the
+ * data-vintage honesty notes live on the estimates themselves.
+ *
+ * The journey planner is the product surface: enter where you are and
  * where you're going, get a route. Lines are an internal planning
  * concept and never appear in this UI — /transit/network (the raw
  * lines-and-stages explorer) stays mounted as an internal inspector for
@@ -16,21 +22,6 @@ import "./styles/plugin.css";
 export function TransitApp() {
   return (
     <div className="tk-app">
-      <header className="tk-header">
-        <div className="tk-header__brand">
-          <h1 className="tk-header__title">
-            VisitKla Transit{" "}
-            <span className="tk-header__vintage" title="Field data vintage">
-              2019/20 data
-            </span>
-          </h1>
-          <p className="tk-header__subtitle">
-            Tell us where you're going. We'll find the stages, fares and
-            walks.
-          </p>
-        </div>
-      </header>
-
       <main className="tk-main">
         <Routes>
           <Route index element={<JourneyPage />} />
@@ -38,20 +29,6 @@ export function TransitApp() {
           <Route path="journey" element={<JourneyPage />} />
         </Routes>
       </main>
-
-      <footer className="tk-footer">
-        <p>
-          Transit data © MapUganda &amp; Transport for Cairo (
-          <a
-            href="https://gitlab.com/digitaltransport/data/africa/kampala"
-            target="_blank"
-            rel="noreferrer"
-          >
-            DT4A Kampala
-          </a>
-          ), CC BY 3.0 · Map data © OpenStreetMap contributors
-        </p>
-      </footer>
     </div>
   );
 }

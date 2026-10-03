@@ -194,8 +194,8 @@ export function JourneyMap({
           source: "tk-walk",
           paint: {
             "line-color": CASING_COLOR,
-            "line-width": 6.5,
-            "line-opacity": 0.65,
+            "line-width": 5,
+            "line-opacity": 0.45,
           },
         });
         m.addLayer({
@@ -204,8 +204,9 @@ export function JourneyMap({
           source: "tk-walk",
           paint: {
             "line-color": WALK_COLOR,
-            "line-width": 3,
-            "line-dasharray": [1.4, 1.6],
+            "line-width": 2.6,
+            "line-dasharray": [1.1, 1.9],
+            "line-opacity": 0.92,
           },
         });
         m.addLayer({
@@ -342,12 +343,14 @@ export function JourneyMap({
           lons.push(a.lng, b.lng);
           lats.push(a.lat, b.lat);
         }
+        // Padding is generous because the pitched camera leans over the
+        // bounds — a tight box clips the route ends at the top of frame.
         map.fitBounds(
           [
             [Math.min(...lons), Math.min(...lats)],
             [Math.max(...lons), Math.max(...lats)],
           ],
-          { padding: 80, duration: 900, maxZoom: 15.5 }
+          { padding: 110, duration: 900, maxZoom: 15.5 }
         );
       }
 
