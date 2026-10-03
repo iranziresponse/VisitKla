@@ -2,6 +2,8 @@ import maplibregl, { type Map as MlMap, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { shapeBetween, stopByIndex } from "../lib/network";
+import { profileForSimple, roadPath, type LngLat } from "../lib/roadRoute";
+import type { SimpleMode } from "../lib/modes";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
 import type { Journey, Place } from "../lib/planner";
@@ -23,30 +25,31 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 export interface DirectRoute {
   from: Place;
   to: Place;
+  mode: SimpleMode;
 }
 
-function journeyFeatures(journey: Journey) {
+function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
   const walk: GeoJSON.Feature[] = [];
   const ride: GeoJSON.Feature[] = [];
   const stages: GeoJSON.Feature[] = [];
-  const lons: number[] = [];
-  const lats: number[] = [];
 
+  let walkIdx = 0;
   for (const leg of journey.legs) {
     if (leg.kind === "walk") {
+      const id = walkIdx++;
+      // Straight pair until (unless) the street path arrives — the async
+      // upgrade writes into walkPaths and redraws.
+      const coords: LngLat[] =
+        walkPaths.get(id) ??
+        [
+          [leg.from.lng, leg.from.lat],
+          [leg.to.lng, leg.to.lat],
+        ];
       walk.push({
         type: "Feature",
         properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: [
-            [leg.from.lng, leg.from.lat],
-            [leg.to.lng, leg.to.lat],
-          ],
-        },
+        geometry: { type: "LineString", coordinates: coords },
       });
-      lons.push(leg.from.lng, leg.to.lng);
-      lats.push(leg.from.lat, leg.to.lat);
     } else {
       // Ride legs follow the feed's surveyed shape — the actual corridor a
       // matatu takes — cut between the board and alight stages. Straight
@@ -63,10 +66,6 @@ function journeyFeatures(journey: Journey) {
         properties: { agency: leg.line.agency },
         geometry: { type: "LineString", coordinates: coords },
       });
-      for (const c of coords) {
-        lons.push(c[0]);
-        lats.push(c[1]);
-      }
       const board = stopByIndex(leg.stopIdxs[0]);
       const alight = stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
       stages.push(
@@ -83,7 +82,7 @@ function journeyFeatures(journey: Journey) {
       );
     }
   }
-  return { walk, ride, stages, lons, lats };
+  return { walk, ride, stages };
 }
 
 function directFeatures(direct: DirectRoute) {
@@ -131,6 +130,11 @@ export function JourneyMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
+  // Selection epoch — async street-path upgrades check it before drawing,
+  // so an answer that lands after the user picked something else is dropped.
+  const routeToken = useRef(0);
+  // Street paths for the current journey's walk legs, by walk-leg order.
+  const walkPaths = useRef<Map<number, LngLat[]>>(new Map());
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -271,9 +275,13 @@ export function JourneyMap({
 
   // Draw / clear the selection. Sources exist from "load" onward; the
   // ready flag gates this until then. A journey wins over a direct line.
+  // Straight-line geometry is drawn immediately; street-following paths
+  // for walk legs and the direct line replace it once the routers answer.
+  // A token counter keeps stale async upgrades from touching the map.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
+    const token = ++routeToken.current;
     const src = (id: string) => {
       const s = map.getSource(id);
       return s ? (s as GeoJSONSource) : null;
@@ -298,18 +306,51 @@ export function JourneyMap({
 
     if (journey) {
       clearDirect();
-      const f = journeyFeatures(journey);
-      src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
-      src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
-      src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
-      if (f.lons.length >= 1) {
+      walkPaths.current = new Map();
+      const redraw = () => {
+        if (token !== routeToken.current) return;
+        const f = journeyFeatures(journey, walkPaths.current);
+        src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
+        src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
+        src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
+      };
+      redraw();
+      {
+        const lons: number[] = [];
+        const lats: number[] = [];
+        for (const leg of journey.legs) {
+          const a = leg.kind === "walk" ? leg.from : stopByIndex(leg.stopIdxs[0]);
+          const b =
+            leg.kind === "walk"
+              ? leg.to
+              : stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+          lons.push(a.lng, b.lng);
+          lats.push(a.lat, b.lat);
+        }
         map.fitBounds(
           [
-            [Math.min(...f.lons), Math.min(...f.lats)],
-            [Math.max(...f.lons), Math.max(...f.lats)],
+            [Math.min(...lons), Math.min(...lats)],
+            [Math.max(...lons), Math.max(...lats)],
           ],
           { padding: 80, duration: 900, maxZoom: 15.5 }
         );
+      }
+
+      // Upgrade each walk leg's dashed line from straight to the actual
+      // street path. Camera stays put — short walks can at most poke a
+      // little past the stop-based bounds.
+      let walkIdx = 0;
+      for (const leg of journey.legs) {
+        if (leg.kind !== "walk") continue;
+        const id = walkIdx++;
+        roadPath("pedestrian", [
+          [leg.from.lng, leg.from.lat],
+          [leg.to.lng, leg.to.lat],
+        ]).then((path) => {
+          if (!path || token !== routeToken.current) return;
+          walkPaths.current.set(id, path);
+          redraw();
+        });
       }
       return;
     }
@@ -325,6 +366,30 @@ export function JourneyMap({
       ],
       { padding: 90, duration: 900, maxZoom: 15.5 }
     );
+
+    // Replace the straight dashed chord with the street path once known,
+    // and re-frame so the whole road route stays visible.
+    roadPath(profileForSimple((direct as DirectRoute).mode), [
+      [direct!.from.lng, direct!.from.lat],
+      [direct!.to.lng, direct!.to.lat],
+    ]).then((path) => {
+      if (!path || token !== routeToken.current) return;
+      src("tk-direct")?.setData({
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: path } },
+        ],
+      });
+      const lons = path.map((c) => c[0]);
+      const lats = path.map((c) => c[1]);
+      map.fitBounds(
+        [
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)],
+        ],
+        { padding: 90, duration: 700, maxZoom: 15.5 }
+      );
+    });
   }, [journey, direct, ready]);
 
   return (

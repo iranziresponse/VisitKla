@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { PlaceInput } from "../components/PlaceInput";
-import { JourneyMap, type DirectRoute } from "../components/JourneyMap";
+import { JourneyMap } from "../components/JourneyMap";
 import {
   ArrowRightIcon,
   BikeIcon,
@@ -247,7 +247,10 @@ export function JourneyPage() {
       </div>
 
       <div className="tk-journey__map">
-        <JourneyMap journey={journey} direct={simpleRoute ? ({ from: from!, to: to! } as DirectRoute) : null} />
+        <JourneyMap
+          journey={journey}
+          direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
+        />
       </div>
     </div>
   );
