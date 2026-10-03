@@ -47,8 +47,8 @@
 /* pressed state: the burnt-orange text is WCAG-safe but quiet, so the
    tint fill and border carry the "on" signal */
 .tk-mode-pill--3d:not(.tk-mode-pill--transit) {
-  background: rgba(255, 107, 0, 0.16);
-  border-color: rgba(138, 46, 15, 0.55);
+  background: var(--tk-sheen, none), rgba(255, 107, 0, 0.2);
+  border-color: rgba(122, 37, 9, 0.55);
 }
 
 @media (max-width: 720px) {
@@ -60,24 +60,33 @@
 
 /* ---------- glass: surfaces floating over live imagery ---------- */
 
-/* Light frost, almost white: the panels read as a bright sheet over the
-   imagery. Glass scopes re-declare the theme tokens, so every rule inside
-   them flips to dark-on-light automatically and the accent darkens to a
-   WCAG-safe burnt orange for text, badges and focus rings (pure #ff6b00
-   stays only as a fill, under dark text). The ramp is tuned for the
-   frost at its murkiest — 0.84 alpha over shadowed ground keeps every
-   text token at 4.5:1 or better. */
+/* Real glass, not frosted paint: the panels are genuinely translucent so
+   the map's colors bloom through them and shift as the camera moves.
+   Heavy blur + saturation + a brightness lift keeps that backdrop soft
+   and light enough for dark text; a diagonal sheen and a white edge do
+   the refraction work. Glass scopes re-declare the theme tokens, so
+   everything inside flips to a dark-on-light ramp automatically and the
+   accent darkens to a WCAG-safe burnt sienna for text, badges and focus
+   rings (pure #ff6b00 stays only as a fill, under dark text). The ramp
+   is tuned for the glass at its murkiest — minimum ~0.68 white coverage
+   over shadowed ground keeps every text token at 4.5:1 or better. */
 .tk-journey__panel,
 .tk-mode-pill {
-  --color-ink: #1f1a15;
-  --color-muted: #4f483f;
-  --color-muted-2: #5d564b;
-  --color-border: rgba(20, 18, 16, 0.12);
-  --color-card: rgba(255, 255, 255, 0.6);
-  --color-card-raised: rgba(20, 18, 16, 0.05);
-  --color-orange: #8a2e0f;
-  --color-orange-bg: rgba(255, 107, 0, 0.14);
-  --color-orange-border: rgba(138, 46, 15, 0.45);
+  --tk-sheen: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42),
+    rgba(255, 255, 255, 0.06) 42%,
+    rgba(255, 255, 255, 0.16)
+  );
+  --color-ink: #171310;
+  --color-muted: #38322a;
+  --color-muted-2: #3f3931;
+  --color-border: rgba(20, 18, 16, 0.14);
+  --color-card: rgba(255, 255, 255, 0.5);
+  --color-card-raised: rgba(20, 18, 16, 0.06);
+  --color-orange: #7a2509;
+  --color-orange-bg: rgba(255, 107, 0, 0.15);
+  --color-orange-border: rgba(122, 37, 9, 0.5);
 }
 
 .tk-mode-pill,
@@ -87,13 +96,14 @@
 .tk-journey__empty,
 .tk-journey__stretch,
 .tk-place__list {
-  background: rgba(247, 246, 243, 0.84);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
-  backdrop-filter: blur(18px) saturate(1.35);
-  border: 1px solid rgba(20, 18, 16, 0.1);
+  background: var(--tk-sheen, none), rgba(243, 242, 238, 0.62);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 12px 36px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(20, 18, 16, 0.06);
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -104,7 +114,7 @@
   .tk-journey__empty,
   .tk-journey__stretch,
   .tk-place__list {
-    background: rgba(247, 246, 243, 0.99);
+    background: rgba(243, 242, 238, 0.98);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -518,7 +528,7 @@
   padding: 6px;
   border-radius: 12px;
   /* dropdowns carry small text over bright ground — more body than cards */
-  background: rgba(247, 246, 243, 0.92);
+  background: var(--tk-sheen, none), rgba(243, 242, 238, 0.88);
 }
 
 .tk-place__item {
