@@ -25,8 +25,8 @@ export function TransitApp() {
             </span>
           </h1>
           <p className="tk-header__subtitle">
-            Tell us where you're going — we'll find the stages, fares and
-            walks
+            Tell us where you're going. We'll find the stages, fares and
+            walks.
           </p>
         </div>
       </header>

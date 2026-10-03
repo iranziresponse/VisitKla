@@ -35,7 +35,6 @@ export function ModeToggle() {
       aria-label={inTransit ? "Switch to story mode" : "Switch to transit mode"}
       title={inTransit ? "Back to landmark stories & boda" : "Try the matatu transit network"}
     >
-      <span className="tk-mode-pill__dot" aria-hidden="true" />
       {label}
     </button>
   );

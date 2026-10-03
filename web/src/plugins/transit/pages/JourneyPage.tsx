@@ -64,7 +64,7 @@ export function JourneyPage() {
   const legs = journey ? journey.legs.filter((l) => !(l.kind === "walk" && l.meters < 30)) : [];
   const stretchNote =
     result && (result.stretchedOrigin || result.stretchedDestination)
-      ? "Includes a longer walk than usual — the nearest surveyed stage is far away."
+      ? "Includes a longer walk than usual. The nearest surveyed stage is far away."
       : null;
 
   return (
@@ -72,7 +72,7 @@ export function JourneyPage() {
       <div className="tk-journey__panel">
         <div className="tk-journey__form">
           <PlaceInput
-            placeholder="Your location — or type a place"
+            placeholder="Your location, or type a place"
             value={from}
             onPick={setFrom}
             onClear={() => setFrom(null)}
@@ -91,7 +91,7 @@ export function JourneyPage() {
 
         {result && result.journeys.length === 0 && !pending && (
           <p className="tk-journey__empty">
-            No matatu combination found for this trip yet — try moving the
+            No matatu combination found for this trip yet. Try moving the
             start or end closer to a stage, or boda part of the way.
           </p>
         )}
@@ -184,7 +184,7 @@ function Step({ leg }: { leg: Leg }) {
       <span className="tk-step__badge">{mode}</span>
       <div className="tk-step__body">
         <div className="tk-step__head">
-          Board at <strong>{board.n}</strong> — a {mode} heading to{" "}
+          Board at <strong>{board.n}</strong>, a {mode} heading to{" "}
           <strong>{terminus}</strong>
         </div>
         <div className="tk-step__meta">

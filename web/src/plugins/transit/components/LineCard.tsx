@@ -75,7 +75,7 @@ export function LineCard({ line, onClose }: LineCardProps) {
         })}
       </div>
 
-      <p className="tk-card__note">*estimated fare — validate on the ground</p>
+      <p className="tk-card__note">*estimated fare, validate on the ground</p>
     </section>
   );
 }

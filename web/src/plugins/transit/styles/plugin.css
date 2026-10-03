@@ -35,20 +35,9 @@
   background: var(--color-orange-bg);
 }
 
-.tk-mode-pill__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-orange);
-}
-
 .tk-mode-pill--transit {
   border-color: var(--color-border);
   color: var(--color-muted);
-}
-
-.tk-mode-pill--transit .tk-mode-pill__dot {
-  background: var(--color-green);
 }
 
 /* ---------- transit app shell ---------- */
@@ -113,7 +102,7 @@
   max-height: calc(100% - 32px);
   overflow-y: auto;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: rgba(30, 27, 23, 0.96);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
@@ -309,7 +298,7 @@
 .tk-search__input {
   width: 100%;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: rgba(30, 27, 23, 0.96);
   color: var(--color-ink);
@@ -332,7 +321,7 @@
   max-height: min(320px, 46vh);
   overflow-y: auto;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: rgba(30, 27, 23, 0.97);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -458,7 +447,7 @@
 .tk-place__input {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-card);
   color: var(--color-ink);
@@ -477,7 +466,7 @@
   right: 0;
   z-index: 40;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: rgba(30, 27, 23, 0.98);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -504,7 +493,7 @@
 
 .tk-place__meta-badge {
   padding: 1px 6px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: 1px solid var(--color-border);
   font-size: 10px;
   color: var(--color-muted-2);
@@ -530,7 +519,7 @@
 .tk-go {
   padding: 11px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--color-orange);
   color: #14120f;
   font-size: 14px;
@@ -649,7 +638,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 11px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-card);
   font-size: 12.5px;
@@ -784,4 +773,52 @@
 
 .tk-footer a {
   color: var(--color-muted);
+}
+
+/* ---------- craft floor: browser chrome & states ---------- */
+
+/* Shape system: pills 999 · cards & controls 12 · inner callouts 8 ·
+   tiny chips 6. One accent (orange); green only for semantic state. */
+.tk-app {
+  font-variant-numeric: tabular-nums;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.tk-app ::selection {
+  background: rgba(255, 107, 0, 0.32);
+  color: var(--color-ink);
+}
+
+.tk-app ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tk-app ::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 6px;
+  border: 3px solid var(--color-bg);
+}
+
+.tk-app ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tk-app :is(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 2px;
+}
+
+.tk-app button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-app *,
+  .tk-mode-pill {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
