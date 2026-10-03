@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, type ReactNode } from "react";
 import { PlaceInput } from "../components/PlaceInput";
 import { JourneyMap } from "../components/JourneyMap";
 import {
-  AGENCY_LABEL,
   formatHeadway,
   formatUgx,
   stopByIndex,
+  variantEndpoints,
 } from "../lib/network";
 import { BODA_SUGGEST_M, estimateBoda } from "../lib/boda";
 import {
@@ -20,14 +19,18 @@ const REPORT_WHATSAPP = import.meta.env.VITE_REPORT_WHATSAPP_NUMBER as
   | string
   | undefined;
 
+/** Riders think in vehicles, not line codes — the feed's agencies only. */
+const MODE_LABEL: Record<string, string> = { taxi: "matatu", bus: "bus" };
+
 /**
  * /transit — the front door. Enter where you are and where you're going,
  * get ranked journeys (direct + 1 transfer) and a step-by-step route:
- * which stage to walk to, which line to board, where to alight. The map
- * sits alongside the whole time (persistent JourneyMap).
+ * which stage to walk to, which vehicle to board and in which direction,
+ * where to alight. The map sits alongside the whole time (persistent
+ * JourneyMap). Lines exist only inside the planner — the UI never shows
+ * them.
  */
 export function JourneyPage() {
-  const navigate = useNavigate();
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [pending, setPending] = useState(false);
@@ -67,10 +70,6 @@ export function JourneyPage() {
   return (
     <div className="tk-journey">
       <div className="tk-journey__panel">
-        <button className="tk-back" onClick={() => navigate("/transit/network")}>
-          ← Explore lines &amp; stages
-        </button>
-
         <div className="tk-journey__form">
           <PlaceInput
             placeholder="Your location — or type a place"
@@ -178,18 +177,19 @@ function Step({ leg }: { leg: Leg }) {
 
   const board = stopByIndex(leg.stopIdxs[0]);
   const alight = stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+  const terminus = variantEndpoints(leg.variant)[1];
+  const mode = MODE_LABEL[leg.line.agency] ?? "matatu";
   return (
     <li className="tk-step tk-step--ride">
-      <span className="tk-step__badge">{leg.line.code}</span>
+      <span className="tk-step__badge">{mode}</span>
       <div className="tk-step__body">
         <div className="tk-step__head">
-          Board at <strong>{board.n}</strong> — toward{" "}
-          <strong>{alight.n}</strong>
+          Board at <strong>{board.n}</strong> — a {mode} heading to{" "}
+          <strong>{terminus}</strong>
         </div>
         <div className="tk-step__meta">
           {leg.stopIdxs.length} stages · ~{Math.round(leg.minutes)} min ·{" "}
-          {formatUgx(leg.fare)} · every {formatHeadway(leg.headwaySec)} (
-          {AGENCY_LABEL[leg.line.agency] ?? "line"})
+          {formatUgx(leg.fare)} · every {formatHeadway(leg.headwaySec)}
         </div>
         <div className="tk-step__alight">
           Alight at <strong>{alight.n}</strong>
@@ -206,21 +206,32 @@ function JourneyOptionCard({
   journey: Journey;
   onOpen: () => void;
 }) {
-  const chain = journey.legs
-    .filter((leg) => !(leg.kind === "walk" && leg.meters < 30))
-    .map((leg, i) => {
+  const kept = journey.legs.filter(
+    (leg) => !(leg.kind === "walk" && leg.meters < 30)
+  );
+  const chain: ReactNode[] = [];
+  let last = "";
+  kept.forEach((leg, i) => {
     if (leg.kind === "walk") {
-      return (
+      chain.push(
         <span key={i} className="tk-chain__walk">
           {Math.round(leg.meters)} m walk
         </span>
       );
+      last = "";
+      return;
     }
-    return (
-      <span key={i} className="tk-chain__ride">
-        {leg.line.code}
-      </span>
-    );
+    // "matatu → Kawala" — the direction a rider would ask for, no codes
+    const mode = MODE_LABEL[leg.line.agency] ?? "matatu";
+    const chip = `${mode} → ${variantEndpoints(leg.variant)[1]}`;
+    if (chip !== last) {
+      chain.push(
+        <span key={i} className="tk-chain__ride">
+          {chip}
+        </span>
+      );
+      last = chip;
+    }
   });
 
   return (

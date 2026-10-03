@@ -406,22 +406,6 @@
 
 /* ---------- header CTA ---------- */
 
-.tk-header__cta {
-  flex-shrink: 0;
-  padding: 9px 16px;
-  border-radius: 999px;
-  background: var(--color-orange);
-  color: #14120f;
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: none;
-  transition: transform 0.15s ease;
-}
-
-.tk-header__cta:hover {
-  transform: translateY(-1px);
-}
-
 /* ---------- journey planner ---------- */
 
 .tk-journey {
@@ -623,6 +607,10 @@
   color: #14120f;
   font-weight: 800;
   font-size: 11.5px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tk-chain__walk {
