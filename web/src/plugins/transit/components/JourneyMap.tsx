@@ -22,6 +22,20 @@ const CITY_ZOOM = 12;
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
+/**
+ * The Liberty vector roads read too loud over aerial imagery — crisp white
+ * and cream lines everywhere swallow the selected route. Fading just those
+ * layers (OpenMapTiles `transportation` source-layer) leaves the satellite
+ * ground as the lead and roads as quiet structure; labels stay untouched.
+ */
+function quietRoads(style: any) {
+  for (const layer of style.layers ?? []) {
+    if (layer.type === "line" && layer["source-layer"] === "transportation") {
+      layer.paint = { ...layer.paint, "line-opacity": 0.38 };
+    }
+  }
+}
+
 export interface DirectRoute {
   from: Place;
   to: Place;
@@ -117,8 +131,9 @@ function directFeatures(direct: DirectRoute) {
  * photoreal city view (same style + tilted camera as the classic app).
  * A matatu journey draws as walk legs (dashed) plus agency-colored ride
  * legs that follow the feed's surveyed shape; a simple route (boda / car
- * / bike / walk) draws as a dashed line along the street network with
- * endpoint dots. Clears back to the city view when the selection does.
+ * / bike / walk) draws as a solid orange line along the street network
+ * with endpoint dots. Clears back to the city view when the selection
+ * does.
  */
 export function JourneyMap({
   journey,
@@ -145,6 +160,7 @@ export function JourneyMap({
 
     buildRideStyle({ buildings: true, satellite: true }).then((style) => {
       if (cancelled || !containerRef.current) return;
+      quietRoads(style);
 
       map = new maplibregl.Map({
         container: containerRef.current,
@@ -228,8 +244,8 @@ export function JourneyMap({
           source: "tk-direct",
           paint: {
             "line-color": CASING_COLOR,
-            "line-width": 6,
-            "line-opacity": 0.7,
+            "line-width": 7,
+            "line-opacity": 0.8,
           },
         });
         m.addLayer({
@@ -238,8 +254,7 @@ export function JourneyMap({
           source: "tk-direct",
           paint: {
             "line-color": TAXI_COLOR,
-            "line-width": 3.5,
-            "line-dasharray": [0.6, 1.4],
+            "line-width": 4.5,
           },
         });
         m.addLayer({
