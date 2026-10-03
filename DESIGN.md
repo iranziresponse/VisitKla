@@ -181,9 +181,17 @@ step uses a dashed border to feel provisional.
   translucent surface, inline SVG), time in 800, mode name muted,
   gap-separated meta spans (no separator dots), badges right-aligned on
   the top row. `Fastest` is the only accent badge.
-- Step detail (one floating glass card): back link, orange summary line,
+- Step detail (one floating glass card): back chip, orange summary line,
   step rows as translucent raised callouts (8px radius, dashed outline for
   walk), honesty footnote in muted text at the bottom.
+- Back chip (in the step detail): Tabler arrow-left + "All routes" in a
+  32px-min-height pill with the raised glass surface; hovers to the
+  orange tint.
+- Collapsed pills (mobile map-focus): with a route open, a map tap
+  swaps the cards for two 44px full-width glass pills — the trip at the
+  top, the selected route's summary plus a chevron at the bottom.
+  Tapping either restores the cards; desktop ignores map taps. Pills
+  share the route-card hover/focus treatment.
 - Honest-notes callout: hairline-separated muted text inside the detail
   card; carries estimate caveats and data-vintage notes.
 
