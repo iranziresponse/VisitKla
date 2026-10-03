@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { stopByIndex } from "../lib/network";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
-import type { Journey } from "../lib/planner";
+import type { Journey, Place } from "../lib/planner";
 import "./JourneyMap.css";
 
 const TAXI_COLOR = "#ff6b00";
@@ -19,6 +19,11 @@ const KAMPALA_CENTER: [number, number] = [32.5825, 0.3476];
 const CITY_ZOOM = 12;
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+export interface DirectRoute {
+  from: Place;
+  to: Place;
+}
 
 function journeyFeatures(journey: Journey) {
   const walk: GeoJSON.Feature[] = [];
@@ -75,13 +80,48 @@ function journeyFeatures(journey: Journey) {
   return { walk, ride, stages, lons, lats };
 }
 
+function directFeatures(direct: DirectRoute) {
+  const line: GeoJSON.Feature = {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [direct.from.lng, direct.from.lat],
+        [direct.to.lng, direct.to.lat],
+      ],
+    },
+  };
+  const ends: GeoJSON.Feature[] = [
+    {
+      type: "Feature",
+      properties: { kind: "start" },
+      geometry: { type: "Point", coordinates: [direct.from.lng, direct.from.lat] },
+    },
+    {
+      type: "Feature",
+      properties: { kind: "end" },
+      geometry: { type: "Point", coordinates: [direct.to.lng, direct.to.lat] },
+    },
+  ];
+  return { line, ends };
+}
+
 /**
- * The planner's persistent map. With no journey selected it's simply the
- * photoreal city view (same style + tilted camera as the classic app);
- * selecting a journey draws it — walk legs dashed, ride legs colored by
- * agency over dark casings — and clears again when the selection does.
+ * The planner's persistent map. With nothing selected it's simply the
+ * photoreal city view (same style + tilted camera as the classic app).
+ * A matatu journey draws as walk legs (dashed) plus agency-colored ride
+ * legs over dark casings; a simple route (boda / car / bike / walk)
+ * draws as a single dashed straight line with endpoint dots. Clears
+ * back to the city view when the selection does.
  */
-export function JourneyMap({ journey }: { journey: Journey | null }) {
+export function JourneyMap({
+  journey,
+  direct,
+}: {
+  journey: Journey | null;
+  direct?: DirectRoute | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -119,6 +159,8 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
         m.addSource("tk-walk", { type: "geojson", data: EMPTY });
         m.addSource("tk-ride", { type: "geojson", data: EMPTY });
         m.addSource("tk-stages", { type: "geojson", data: EMPTY });
+        m.addSource("tk-direct", { type: "geojson", data: EMPTY });
+        m.addSource("tk-direct-ends", { type: "geojson", data: EMPTY });
 
         m.addLayer({
           id: "walk-casing",
@@ -170,6 +212,37 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
             "circle-stroke-width": 2,
           },
         });
+        m.addLayer({
+          id: "direct-casing",
+          type: "line",
+          source: "tk-direct",
+          paint: {
+            "line-color": CASING_COLOR,
+            "line-width": 6,
+            "line-opacity": 0.7,
+          },
+        });
+        m.addLayer({
+          id: "direct",
+          type: "line",
+          source: "tk-direct",
+          paint: {
+            "line-color": TAXI_COLOR,
+            "line-width": 3.5,
+            "line-dasharray": [0.6, 1.4],
+          },
+        });
+        m.addLayer({
+          id: "direct-ends",
+          type: "circle",
+          source: "tk-direct-ends",
+          paint: {
+            "circle-radius": 5.5,
+            "circle-color": ["match", ["get", "kind"], "start", "#16a34a", TAXI_COLOR],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 2,
+          },
+        });
 
         // Reveal once tiles have painted — same treatment as the classic
         // world map — with a safety fallback for a stalled tile server.
@@ -190,8 +263,8 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
     };
   }, []);
 
-  // Draw / clear the journey. Sources exist from "load" onward; the ready
-  // flag gates this until then.
+  // Draw / clear the selection. Sources exist from "load" onward; the
+  // ready flag gates this until then. A journey wins over a direct line.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -200,29 +273,53 @@ export function JourneyMap({ journey }: { journey: Journey | null }) {
       return s ? (s as GeoJSONSource) : null;
     };
 
-    if (!journey) {
+    const clearJourney = () => {
       src("tk-walk")?.setData(EMPTY);
       src("tk-ride")?.setData(EMPTY);
       src("tk-stages")?.setData(EMPTY);
+    };
+    const clearDirect = () => {
+      src("tk-direct")?.setData(EMPTY);
+      src("tk-direct-ends")?.setData(EMPTY);
+    };
+
+    if (!journey && !direct) {
+      clearJourney();
+      clearDirect();
       map.easeTo({ center: KAMPALA_CENTER, zoom: CITY_ZOOM, duration: 700 });
       return;
     }
 
-    const f = journeyFeatures(journey);
-    src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
-    src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
-    src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
-
-    if (f.lons.length >= 1) {
-      map.fitBounds(
-        [
-          [Math.min(...f.lons), Math.min(...f.lats)],
-          [Math.max(...f.lons), Math.max(...f.lats)],
-        ],
-        { padding: 80, duration: 900, maxZoom: 15.5 }
-      );
+    if (journey) {
+      clearDirect();
+      const f = journeyFeatures(journey);
+      src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
+      src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
+      src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
+      if (f.lons.length >= 1) {
+        map.fitBounds(
+          [
+            [Math.min(...f.lons), Math.min(...f.lats)],
+            [Math.max(...f.lons), Math.max(...f.lats)],
+          ],
+          { padding: 80, duration: 900, maxZoom: 15.5 }
+        );
+      }
+      return;
     }
-  }, [journey, ready]);
+
+    clearJourney();
+    const d = directFeatures(direct as DirectRoute);
+    src("tk-direct")?.setData({ type: "FeatureCollection", features: [d.line] });
+    src("tk-direct-ends")?.setData({ type: "FeatureCollection", features: d.ends });
+    map.fitBounds(
+      [
+        [Math.min(direct!.from.lng, direct!.to.lng), Math.min(direct!.from.lat, direct!.to.lat)],
+        [Math.max(direct!.from.lng, direct!.to.lng), Math.max(direct!.from.lat, direct!.to.lat)],
+      ],
+      { padding: 90, duration: 900, maxZoom: 15.5 }
+    );
+  }, [journey, direct, ready]);
 
   return (
     <div className="tk-journey-map-wrap">

@@ -527,6 +527,67 @@
   cursor: pointer;
 }
 
+.tk-swap {
+  align-self: flex-end;
+  margin: -4px 6px;
+  padding: 5px;
+  display: inline-flex;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted-2);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tk-swap:hover {
+  color: var(--color-orange);
+  background: var(--color-orange-bg);
+}
+
+/* ---------- simple-mode detail (boda / car / bike / walk) ---------- */
+
+.tk-simple__hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.tk-simple__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.tk-simple__facts {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.tk-simple__notes {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.tk-simple__notes p {
+  margin: 0;
+}
+
 .tk-go:disabled {
   opacity: 0.4;
   cursor: default;
@@ -558,57 +619,111 @@
   color: var(--color-muted-2);
 }
 
-.tk-option {
+/* ---------- routes list (all modes, time-ranked) ---------- */
+
+.tk-routes {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.tk-route {
+  display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 12px;
+  width: 100%;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-card);
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
-.tk-option:hover {
+.tk-route:hover {
   border-color: var(--color-orange-border);
 }
 
-.tk-option__time {
+.tk-route__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-ink);
+}
+
+.tk-route__icon--big {
+  width: 44px;
+  height: 44px;
+}
+
+.tk-route__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tk-route__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tk-route__time {
   font-size: 16px;
   font-weight: 800;
   color: var(--color-ink);
 }
 
-.tk-option__chain {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+.tk-route__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
-.tk-chain__ride {
+.tk-route__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 8px;
   border-radius: 6px;
-  background: var(--color-orange);
-  color: #14120f;
-  font-weight: 800;
-  font-size: 11.5px;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
-.tk-chain__walk {
-  color: var(--color-muted);
+.tk-badge--accent {
+  background: var(--color-orange-bg);
+  border-color: var(--color-orange-border);
+  color: var(--color-orange);
 }
 
-.tk-option__meta {
+.tk-route__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   font-size: 11.5px;
-  color: var(--color-muted);
+  color: var(--color-muted-2);
 }
 
 .tk-journey__detail {
@@ -617,6 +732,9 @@
 
 .tk-journey__summary {
   margin: 4px 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   font-size: 13.5px;
   font-weight: 700;
   color: var(--color-orange);
@@ -656,6 +774,10 @@
 
 .tk-step__badge {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-width: 46px;
   padding: 3px 8px;
   border-radius: 6px;
@@ -673,12 +795,22 @@
   color: var(--color-muted-2);
 }
 
+.tk-step__badge--mode {
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-ink);
+}
+
 .tk-step__body {
   flex: 1;
 }
 
 .tk-step__meta {
   margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
   font-size: 11.5px;
   color: var(--color-muted);
 }
