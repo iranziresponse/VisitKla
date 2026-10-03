@@ -44,10 +44,18 @@ export function PlaceInput({
 
   const stageOptions = useMemo(() => {
     if (text.trim().length < 2) return [] as Option[];
-    return searchStopIndices(text, 5).map((idx) => ({
-      place: { name: stopByIndex(idx).n, lat: stopByIndex(idx).lat, lng: stopByIndex(idx).lng },
-      meta: "stage",
-    }));
+    // the feed models adjacent bays as separate records that often share
+    // a name — one row per name in the dropdown
+    const seen = new Set<string>();
+    const out: Option[] = [];
+    for (const idx of searchStopIndices(text, 10)) {
+      const s = stopByIndex(idx);
+      if (seen.has(s.n.toLowerCase())) continue;
+      seen.add(s.n.toLowerCase());
+      out.push({ place: { name: s.n, lat: s.lat, lng: s.lng }, meta: "stage" });
+      if (out.length >= 5) break;
+    }
+    return out;
   }, [text]);
 
   useEffect(() => {
