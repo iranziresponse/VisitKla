@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import "./lib/favicon"; // site favicon — this module is the one every page loads
 import "./styles/plugin.css";
 
 const MODE_KEY = "visitkla:mode";

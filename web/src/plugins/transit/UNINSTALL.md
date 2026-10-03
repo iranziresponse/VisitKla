@@ -61,5 +61,9 @@ classic app (`web/src/App.tsx`) through clearly marked blocks.
   stop the moment the code is gone.
 - The `visitkla:mode` localStorage key the toggle writes is harmless once
   the plugin is gone; no cleanup needed (browsers evict it with site data).
+- The site favicon is injected at runtime (an SVG data URI appended to
+  `<head>` by `lib/favicon.ts`, imported from `ModeToggle.tsx` so every
+  page gets it). The friend's `index.html` is never touched; deleting the
+  plugin simply leaves the site as it was — without a favicon, as before.
 - If this file and the plugin are both present, these steps are canonical —
   they are kept up to date with every plugin change.
