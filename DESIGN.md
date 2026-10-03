@@ -48,29 +48,34 @@ spacing:
   lg: "16px"
 components:
   route-card:
-    backgroundColor: "rgba(26, 23, 19, 0.75) + backdrop blur(18px) saturate(1.35)"
-    borderColor: "rgba(255, 240, 220, 0.13)"
-    textColor: "{colors.ink}"
+    backgroundColor: "rgba(247, 246, 243, 0.84) + backdrop blur(18px) saturate(1.35)"
+    borderColor: "rgba(20, 18, 16, 0.1)"
+    textColor: "#1f1a15"
     rounded: "{rounded.card}"
     padding: "12px"
-    shadow: "0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 240, 220, 0.09)"
+    shadow: "0 12px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6)"
   route-card-hover:
-    borderColor: "{colors.signal-orange-edge}"
+    borderColor: "rgba(138, 46, 15, 0.45)"
   primary-button:
-    backgroundColor: "{colors.signal-orange}"
-    textColor: "{colors.night-bg}"
+    backgroundColor: "#ff6b00"
+    textColor: "#14120f"
     rounded: "{rounded.card}"
     padding: "11px"
   badge-accent:
-    backgroundColor: "{colors.signal-orange-tint}"
-    textColor: "{colors.signal-orange}"
+    backgroundColor: "rgba(255, 107, 0, 0.14)"
+    textColor: "#8a2e0f"
     rounded: "{rounded.chip}"
     padding: "2px 8px"
   badge-neutral:
-    backgroundColor: "rgba(255, 240, 220, 0.07)"
-    textColor: "{colors.ink-muted}"
+    backgroundColor: "rgba(20, 18, 16, 0.05)"
+    textColor: "#4f483f"
     rounded: "{rounded.chip}"
     padding: "2px 8px"
+  buildings-pill:
+    text: "3D blocks"
+    position: "left of the mode pill (stacked under it on mobile)"
+    offState: "muted ink text, hairline border"
+    onState: "rgba(255, 107, 0, 0.16) tint fill, burnt-orange border and text, aria-pressed=true"
 ---
 
 # VisitKla Design System
@@ -89,9 +94,8 @@ Tokens live in `web/src/styles/global.css` (`:root`) and are shared by both
 app modes; the transit plugin consumes them and never redefines them.
 
 - Ground: `night-bg` behind the map; floating surfaces use the shared
-  warm glass fill (see Elevation) instead of solid cards; translucent
-  raised fills `rgba(255,240,220,.05-.08)` for nested elements (icon
-  chips, badges, step rows).
+  light frost fill (see Elevation) instead of solid cards; translucent
+  raised fills for nested elements (icon chips, badges, step rows).
 - Text: `ink` primary, `ink-muted` secondary, `ink-faint` tertiary/meta.
 - Accent: `signal-orange` for the primary action, fastest badge, selected
   route geometry, and alight markers. Never used as large fills.
@@ -119,15 +123,21 @@ floating). Spacing moves on an 8px rhythm (4/8/12/16).
 
 ## Elevation & Depth
 
-One glass material for everything that floats over imagery: warm dark
-fill `rgba(26,23,19,.75)` with `backdrop-filter: blur(18px) saturate(1.35)`,
-a 1px light-warm border `rgba(255,240,220,.13)`, an inset top highlight,
-and the ambient shadow `0 12px 36px rgba(0,0,0,.45)`. Dropdowns thicken to
-`.88` for small text. Under `prefers-reduced-transparency` the fill goes
-near-solid and the blur switches off. Content inside a card separates with
-borders and hairlines, never nested cards. The basemap's vector roads are
-faded to 0.38 opacity so the imagery leads and the selected route
-(solid orange, 4.5px over a dark casing) reads instantly.
+One glass material for everything that floats over imagery: near-white
+frost `rgba(247,246,243,.84)` with `backdrop-filter: blur(18px)
+saturate(1.35)`, a 1px dark hairline `rgba(20,18,16,.1)`, an inset white
+top highlight, and the ambient shadow `0 12px 36px rgba(0,0,0,.35)`.
+Glass scopes re-declare the theme tokens, so everything inside flips to
+a dark text ramp (ink `#1f1a15`, muted `#4f483f`, faint `#5d564b` — all
+≥4.5:1 at the frost's murkiest) and the accent darkens to burnt
+`#8a2e0f` for text, badges and focus rings. Pure `#ff6b00` is a fill
+only (search button, vehicle badges), always under dark text.
+Dropdowns thicken to `.92`. Under `prefers-reduced-transparency` the
+fill goes near-solid and the blur switches off. Content inside a card
+separates with borders and hairlines, never nested cards. The basemap's
+vector roads are faded to 0.38 opacity and the 3D rooftop blocks default
+to off (the "3D blocks" pill flips them), so the imagery leads and the
+selected route (solid orange, 4.5px over a dark casing) reads instantly.
 
 ## Shapes
 
@@ -137,11 +147,12 @@ step uses a dashed border to feel provisional.
 
 ## Components
 
-- Mode pill (fixed top-right): text-only glass, orange text/border in
-  story mode, ink text in transit mode.
+- Mode pill (fixed top-right): text-only frost, burnt-orange text/border
+  in story mode, ink text in transit mode. The "3D blocks" pill sits to
+  its left (stacked under it on mobile) and tints orange while pressed.
 - Search card (floating, glass): the two place inputs and the orange
   search button; the swap button sits between the fields when both are
-  set. Suggestions dropdown is thicker glass with type badges (`stage`,
+  set. Suggestions dropdown is thicker frost with type badges (`stage`,
   `mall`, `area`) and a muted context line.
 - Route card (one per route, floating glass): icon chip (38px, raised
   translucent surface, inline SVG), time in 800, mode name muted,
