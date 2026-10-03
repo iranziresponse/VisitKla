@@ -200,9 +200,23 @@
 }
 
 @media (max-width: 720px) {
-  /* keep the collapsed search label clear of the mode pill */
-  .tk-mapfocus .tk-pillbtn:not(.tk-pillbtn--route) {
+  /* keep collapsed search labels clear of the mode pill (map-focus pills
+     and the resting folded search pill share the pill's top band) */
+  .tk-journey__panel .tk-pillbtn:not(.tk-pillbtn--route) {
     padding-right: 128px;
+  }
+
+  /* the form expands from the search pill on phones only; a short settle
+     keeps the swap from reading as a flash (reduced-motion kills it below) */
+  .tk-journey__form {
+    animation: tk-form-in 0.16s ease-out;
+  }
+}
+
+@keyframes tk-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
   }
 }
 

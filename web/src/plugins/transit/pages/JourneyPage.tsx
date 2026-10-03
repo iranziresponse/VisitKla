@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PlaceInput } from "../components/PlaceInput";
 import { JourneyMap } from "../components/JourneyMap";
 import {
@@ -146,6 +146,11 @@ export function JourneyPage() {
   // Mobile map-focus: with a route open, tapping the map collapses the
   // floating cards into two thin pills; tapping either restores them.
   const [mapFocus, setMapFocus] = useState(false);
+  // On phones the search fields stay folded into a pill until tapped;
+  // any interaction outside the form folds them back. Desktop always
+  // shows the form.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia("(max-width: 720px)").matches
   );
@@ -156,6 +161,27 @@ export function JourneyPage() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  // Fold the search form away on any interaction outside it — a tap on the
+  // map or the route cards, or Escape. Focusing the inputs is deliberately
+  // NOT forced on expand: the fields clear on focus to invite a re-pick.
+  useEffect(() => {
+    if (!isMobile || !searchOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (formRef.current && e.target instanceof Node && !formRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSearchOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMobile, searchOpen]);
 
   const canSearch = from !== null && to !== null;
 
@@ -208,6 +234,8 @@ export function JourneyPage() {
   const simpleRoute = simpleSelected ? simpleRoutes.find((r) => r.mode === simpleSelected) ?? null : null;
 
   const collapsed = mapFocus && isMobile && (journey !== null || simpleRoute !== null);
+  // The form itself is the resting-folded element on phones; desktop never folds.
+  const formOpen = !isMobile || searchOpen;
   function openRoute(open: () => void) {
     open();
     setMapFocus(false);
@@ -241,7 +269,11 @@ export function JourneyPage() {
           direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
           buildings={buildings3d}
           onMapClick={() => {
-            if (isMobile && (journey !== null || simpleRoute !== null)) setMapFocus(true);
+            if (isMobile && (journey !== null || simpleRoute !== null)) {
+              setMapFocus(true);
+              // re-expanding lands on the resting folded search pill
+              setSearchOpen(false);
+            }
           }}
         />
       </div>
@@ -291,29 +323,46 @@ export function JourneyPage() {
           </>
         ) : (
           <>
-            <div className="tk-journey__form">
-          <PlaceInput
-            placeholder="Your location, or type a place"
-            value={from}
-            onPick={setFrom}
-            onClear={clearFrom}
-            allowLocation
-          />
-          {from && to && (
-            <button className="tk-swap" onClick={swap} aria-label="Swap start and destination" title="Swap">
-              <SwapIcon size={15} />
-            </button>
-          )}
-          <PlaceInput
-            placeholder="Where are you going?"
-            value={to}
-            onPick={setTo}
-            onClear={clearTo}
-          />
-          <button className="tk-go" onClick={search} disabled={!canSearch || pending}>
-            {pending ? "Finding routes…" : "Show me the route"}
-          </button>
-        </div>
+            {/* Only the form/pill slot swaps on fold — the results below sit
+               outside that ternary so a fold never remounts the route cards
+               (a remount would swallow the tap that opened them). */}
+            {formOpen ? (
+              <div className="tk-journey__form" ref={formRef}>
+                <PlaceInput
+                  placeholder="Your location, or type a place"
+                  value={from}
+                  onPick={setFrom}
+                  onClear={clearFrom}
+                  allowLocation
+                />
+                {from && to && (
+                  <button className="tk-swap" onClick={swap} aria-label="Swap start and destination" title="Swap">
+                    <SwapIcon size={15} />
+                  </button>
+                )}
+                <PlaceInput
+                  placeholder="Where are you going?"
+                  value={to}
+                  onPick={setTo}
+                  onClear={clearTo}
+                />
+                <button className="tk-go" onClick={search} disabled={!canSearch || pending}>
+                  {pending ? "Finding routes…" : "Show me the route"}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="tk-pillbtn"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Expand search"
+              >
+                <SearchIcon size={16} />
+                <span className="tk-pillbtn__label">
+                  {from && to ? `${from.name} to ${to.name}` : "Search routes"}
+                </span>
+              </button>
+            )}
 
         {result && cards.length === 0 && !pending && (
           <p className="tk-journey__empty">
