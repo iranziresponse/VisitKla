@@ -1113,6 +1113,12 @@
   }
 }
 
+/* Guidance is compact — it never grows into the tall scroll region the
+   preview uses; the map stays visible around it. */
+.tk-nav {
+  flex: 0 0 auto;
+}
+
 .tk-nav__top {
   display: flex;
   align-items: center;

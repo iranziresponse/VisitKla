@@ -1006,7 +1006,7 @@ function NavCard({
           : "Finding you…";
 
   return (
-    <div className="tk-journey__detail tk-nav">
+    <div className="tk-journey__detail tk-nav" aria-live="polite">
       <div className="tk-nav__top">
         <span className="tk-nav__progress">
           Step {index + 1} of {steps.length}
