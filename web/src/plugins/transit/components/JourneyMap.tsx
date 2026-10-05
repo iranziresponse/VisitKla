@@ -7,11 +7,13 @@ import type { SimpleMode } from "../lib/modes";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
 import type { Journey, Place } from "../lib/planner";
+import type { UserFix } from "../hooks/useLocationWatch";
 import "./JourneyMap.css";
 
 const TAXI_COLOR = "#ff6b00";
 const BUS_COLOR = "#38bdf8";
 const WALK_COLOR = "#f6efe4";
+const BODA_COLOR = "#16a34a";
 const CASING_COLOR = "#14120f";
 
 /** Same tilted camera language as the classic app's maps. */
@@ -52,13 +54,18 @@ export interface DirectRoute {
   mode: SimpleMode;
 }
 
-function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
+function journeyFeatures(
+  journey: Journey,
+  walkPaths: Map<number, LngLat[]>,
+  bodaPaths: Map<number, LngLat[]>
+) {
   const walk: GeoJSON.Feature[] = [];
+  const boda: GeoJSON.Feature[] = [];
   const ride: GeoJSON.Feature[] = [];
   const stages: GeoJSON.Feature[] = [];
 
   let walkIdx = 0;
-  for (const leg of journey.legs) {
+  journey.legs.forEach((leg, legIdx) => {
     if (leg.kind === "walk") {
       const id = walkIdx++;
       // Straight pair until (unless) the street path arrives — the async
@@ -70,6 +77,20 @@ function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
           [leg.to.lng, leg.to.lat],
         ];
       walk.push({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: coords },
+      });
+    } else if (leg.kind === "boda") {
+      // A swapped boda link rides the streets too (car profile is the
+      // keyless proxy for a motorbike) — straight until upgraded.
+      const coords: LngLat[] =
+        bodaPaths.get(legIdx) ??
+        [
+          [leg.from.lng, leg.from.lat],
+          [leg.to.lng, leg.to.lat],
+        ];
+      boda.push({
         type: "Feature",
         properties: {},
         geometry: { type: "LineString", coordinates: coords },
@@ -105,8 +126,8 @@ function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
         }
       );
     }
-  }
-  return { walk, ride, stages };
+  });
+  return { walk, boda, ride, stages };
 }
 
 function directFeatures(direct: DirectRoute) {
@@ -150,6 +171,11 @@ export function JourneyMap({
   direct,
   buildings = false,
   onMapClick,
+  userFix = null,
+  followUser = false,
+  navActive = false,
+  onUserPan,
+  refitKey = 0,
 }: {
   journey: Journey | null;
   direct?: DirectRoute | null;
@@ -157,21 +183,36 @@ export function JourneyMap({
   buildings?: boolean;
   /** Fired on a genuine map tap (maplibre's click — drags don't count). */
   onMapClick?: () => void;
+  /** Live position fix; drawn as the orange puck when present. */
+  userFix?: UserFix | null;
+  /** While navigating: keep the camera centered on the puck. */
+  followUser?: boolean;
+  navActive?: boolean;
+  /** The user dragged/rotated the map — follow mode should yield. */
+  onUserPan?: () => void;
+  /** Bump to re-frame the drawn route (e.g. after leaving navigation). */
+  refitKey?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
   // Latest tap handler — the map binds "click" once at mount.
   const mapClickRef = useRef<(() => void) | null>(null);
+  const userPanRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     mapClickRef.current = onMapClick ?? null;
   }, [onMapClick]);
+  useEffect(() => {
+    userPanRef.current = onUserPan ?? null;
+  }, [onUserPan]);
   // Selection epoch — async street-path upgrades check it before drawing,
   // so an answer that lands after the user picked something else is dropped.
   const routeToken = useRef(0);
   // Street paths for the current journey's walk legs, by walk-leg order.
   const walkPaths = useRef<Map<number, LngLat[]>>(new Map());
+  // Same for swapped boda legs, by leg index (car profile = motorbike proxy).
+  const bodaPaths = useRef<Map<number, LngLat[]>>(new Map());
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -196,6 +237,9 @@ export function JourneyMap({
       });
       mapRef.current = map;
       map.on("click", () => mapClickRef.current?.());
+      // Real user gestures only — programmatic easeTo never fires these.
+      map.on("dragstart", () => userPanRef.current?.());
+      map.on("rotatestart", () => userPanRef.current?.());
       map.addControl(
         new maplibregl.AttributionControl({
           customAttribution:
@@ -207,10 +251,12 @@ export function JourneyMap({
         const m = mapRef.current;
         if (!m || cancelled) return;
         m.addSource("tk-walk", { type: "geojson", data: EMPTY });
+        m.addSource("tk-boda", { type: "geojson", data: EMPTY });
         m.addSource("tk-ride", { type: "geojson", data: EMPTY });
         m.addSource("tk-stages", { type: "geojson", data: EMPTY });
         m.addSource("tk-direct", { type: "geojson", data: EMPTY });
         m.addSource("tk-direct-ends", { type: "geojson", data: EMPTY });
+        m.addSource("tk-user", { type: "geojson", data: EMPTY });
 
         m.addLayer({
           id: "walk-casing",
@@ -231,6 +277,25 @@ export function JourneyMap({
             "line-width": 2.6,
             "line-dasharray": [1.1, 1.9],
             "line-opacity": 0.92,
+          },
+        });
+        m.addLayer({
+          id: "boda-casing",
+          type: "line",
+          source: "tk-boda",
+          paint: {
+            "line-color": CASING_COLOR,
+            "line-width": 8,
+            "line-opacity": 0.85,
+          },
+        });
+        m.addLayer({
+          id: "boda",
+          type: "line",
+          source: "tk-boda",
+          paint: {
+            "line-color": BODA_COLOR,
+            "line-width": 4.5,
           },
         });
         m.addLayer({
@@ -261,6 +326,17 @@ export function JourneyMap({
             "circle-color": ["match", ["get", "kind"], "board", "#16a34a", "#ff6b00"],
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
+          },
+        });
+        m.addLayer({
+          id: "user",
+          type: "circle",
+          source: "tk-user",
+          paint: {
+            "circle-radius": 7,
+            "circle-color": "#ff6b00",
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 2.5,
           },
         });
         m.addLayer({
@@ -329,6 +405,7 @@ export function JourneyMap({
 
     const clearJourney = () => {
       src("tk-walk")?.setData(EMPTY);
+      src("tk-boda")?.setData(EMPTY);
       src("tk-ride")?.setData(EMPTY);
       src("tk-stages")?.setData(EMPTY);
     };
@@ -347,10 +424,12 @@ export function JourneyMap({
     if (journey) {
       clearDirect();
       walkPaths.current = new Map();
+      bodaPaths.current = new Map();
       const redraw = () => {
         if (token !== routeToken.current) return;
-        const f = journeyFeatures(journey, walkPaths.current);
+        const f = journeyFeatures(journey, walkPaths.current, bodaPaths.current);
         src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
+        src("tk-boda")?.setData({ type: "FeatureCollection", features: f.boda });
         src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
         src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
       };
@@ -359,11 +438,11 @@ export function JourneyMap({
         const lons: number[] = [];
         const lats: number[] = [];
         for (const leg of journey.legs) {
-          const a = leg.kind === "walk" ? leg.from : stopByIndex(leg.stopIdxs[0]);
+          const a = leg.kind === "ride" ? stopByIndex(leg.stopIdxs[0]) : leg.from;
           const b =
-            leg.kind === "walk"
-              ? leg.to
-              : stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+            leg.kind === "ride"
+              ? stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1])
+              : leg.to;
           lons.push(a.lng, b.lng);
           lats.push(a.lat, b.lat);
         }
@@ -380,20 +459,31 @@ export function JourneyMap({
 
       // Upgrade each walk leg's dashed line from straight to the actual
       // street path. Camera stays put — short walks can at most poke a
-      // little past the stop-based bounds.
+      // little past the stop-based bounds. Swapped boda legs upgrade to
+      // the car-profile street path the same way, in green.
       let walkIdx = 0;
-      for (const leg of journey.legs) {
-        if (leg.kind !== "walk") continue;
-        const id = walkIdx++;
-        roadPath("pedestrian", [
-          [leg.from.lng, leg.from.lat],
-          [leg.to.lng, leg.to.lat],
-        ]).then((path) => {
-          if (!path || token !== routeToken.current) return;
-          walkPaths.current.set(id, path);
-          redraw();
-        });
-      }
+      journey.legs.forEach((leg, legIdx) => {
+        if (leg.kind === "walk") {
+          const id = walkIdx++;
+          roadPath("pedestrian", [
+            [leg.from.lng, leg.from.lat],
+            [leg.to.lng, leg.to.lat],
+          ]).then((path) => {
+            if (!path || token !== routeToken.current) return;
+            walkPaths.current.set(id, path);
+            redraw();
+          });
+        } else if (leg.kind === "boda") {
+          roadPath("car", [
+            [leg.from.lng, leg.from.lat],
+            [leg.to.lng, leg.to.lat],
+          ]).then((path) => {
+            if (!path || token !== routeToken.current) return;
+            bodaPaths.current.set(legIdx, path);
+            redraw();
+          });
+        }
+      });
       return;
     }
 
@@ -432,7 +522,42 @@ export function JourneyMap({
         { padding: 90, duration: 700, maxZoom: 15.5 }
       );
     });
-  }, [journey, direct, ready]);
+  }, [journey, direct, ready, refitKey]);
+
+  // The live puck — only ever fed while navigation is running.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const src = map.getSource("tk-user");
+    if (!src) return;
+    (src as GeoJSONSource).setData(
+      userFix
+        ? {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: {},
+                geometry: { type: "Point", coordinates: [userFix.lng, userFix.lat] },
+              },
+            ],
+          }
+        : EMPTY
+    );
+  }, [userFix, ready]);
+
+  // Follow mode: keep the puck centered. The zoom floor kicks in on the
+  // first fix so guidance reads at street scale; later fixes keep the
+  // user's own zoom.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !navActive || !followUser || !userFix) return;
+    map.easeTo({
+      center: [userFix.lng, userFix.lat],
+      zoom: Math.max(map.getZoom(), 15.8),
+      duration: 800,
+    });
+  }, [navActive, followUser, userFix?.lat, userFix?.lng, ready]);
 
   // 3D blocks toggle — a pure visibility flip, no style rebuild.
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ClockIcon,
   CoinIcon,
+  CurrentLocationIcon,
   MotorbikeIcon,
   SearchIcon,
   SwapIcon,
@@ -22,8 +23,23 @@ import {
   stopByIndex,
   variantEndpoints,
 } from "../lib/network";
-import { BODA_SUGGEST_M, estimateBoda } from "../lib/boda";
+import {
+  BODA_SWAP_M,
+  bodaMinutes,
+  estimateBoda,
+  journeyWithBodaSwaps,
+} from "../lib/boda";
 import { estimateAllSimple, type SimpleMode, type SimpleRoute } from "../lib/modes";
+import {
+  NAV_ARRIVE_M,
+  NAV_START_M,
+  formatDistance,
+  metersTo,
+  navStepsForJourney,
+  navStepsForSimple,
+  type NavStep,
+} from "../lib/nav";
+import { useLocationWatch } from "../hooks/useLocationWatch";
 import {
   haversine,
   planJourney,
@@ -142,7 +158,18 @@ export function JourneyPage() {
   } | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [simpleSelected, setSimpleSelected] = useState<SimpleMode | null>(null);
+  // Walk legs the rider chose to ride by boda instead, by leg index into
+  // the selected journey. Resets with every new selection.
+  const [bodaSwaps, setBodaSwaps] = useState<ReadonlySet<number>>(new Set());
   const [buildings3d, setBuildings3d] = useState(false);
+  // Live guidance: on, the panel becomes a step-by-step card fed by GPS.
+  const [navigating, setNavigating] = useState(false);
+  const [navIndex, setNavIndex] = useState(0);
+  const [navStarted, setNavStarted] = useState(false);
+  const [navArrived, setNavArrived] = useState(false);
+  const [followUser, setFollowUser] = useState(true);
+  // Bumped on exit so the map re-frames the whole route.
+  const [navEpoch, setNavEpoch] = useState(0);
   // Mobile map-focus: with a route open, tapping the map collapses the
   // floating cards into two thin pills; tapping either restores them.
   const [mapFocus, setMapFocus] = useState(false);
@@ -193,6 +220,8 @@ export function JourneyPage() {
     setResult(null);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
+    setNavigating(false);
   }
 
   function clearTo() {
@@ -200,6 +229,35 @@ export function JourneyPage() {
     setResult(null);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
+    setNavigating(false);
+  }
+
+  function toggleBodaSwap(idx: number) {
+    setBodaSwaps((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
+
+  function startNavigation() {
+    setNavigating(true);
+    setNavIndex(0);
+    setNavStarted(false);
+    setNavArrived(false);
+    setFollowUser(true);
+    setSearchOpen(false);
+    setMapFocus(false);
+  }
+
+  function exitNavigation() {
+    setNavigating(false);
+    setNavIndex(0);
+    setNavStarted(false);
+    setNavArrived(false);
+    setNavEpoch((v) => v + 1); // re-frame the whole route on the map
   }
 
   function search() {
@@ -207,6 +265,8 @@ export function JourneyPage() {
     setPending(true);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
+    setNavigating(false);
     setMapFocus(false);
     // let the pending state paint before the synchronous compute
     window.setTimeout(() => {
@@ -233,18 +293,78 @@ export function JourneyPage() {
   const journey = selected !== null && result ? result.journeys[selected] : null;
   const simpleRoute = simpleSelected ? simpleRoutes.find((r) => r.mode === simpleSelected) ?? null : null;
 
-  const collapsed = mapFocus && isMobile && (journey !== null || simpleRoute !== null);
+  const collapsed =
+    mapFocus && isMobile && !navigating && (journey !== null || simpleRoute !== null);
   // The form itself is the resting-folded element on phones; desktop never folds.
   const formOpen = !isMobile || searchOpen;
+  // What the map and steps actually draw: the selected journey with any
+  // chosen walk legs replaced by their boda rides.
+  const displayJourney = journey ? journeyWithBodaSwaps(journey, bodaSwaps) : null;
   function openRoute(open: () => void) {
     open();
+    setBodaSwaps(new Set());
+    setNavigating(false);
     setMapFocus(false);
   }
-  const detail = journey ? (
-    <TaxiDetail journey={journey} onBack={() => setSelected(null)} />
-  ) : simpleRoute && from && to ? (
-    <SimpleDetail route={simpleRoute} from={from} to={to} onBack={() => setSimpleSelected(null)} />
-  ) : null;
+  const detail =
+    journey && displayJourney ? (
+      <TaxiDetail
+        journey={displayJourney}
+        onToggleSwap={toggleBodaSwap}
+        onStart={startNavigation}
+        onBack={() => {
+          setSelected(null);
+          setBodaSwaps(new Set());
+        }}
+      />
+    ) : simpleRoute && from && to ? (
+      <SimpleDetail
+        route={simpleRoute}
+        from={from}
+        to={to}
+        onStart={startNavigation}
+        onBack={() => setSimpleSelected(null)}
+      />
+    ) : null;
+
+  // --- live guidance ---
+  const { fix: userFix, status: locateStatus } = useLocationWatch(navigating);
+  const navSteps = navigating
+    ? displayJourney
+      ? navStepsForJourney(displayJourney)
+      : simpleRoute && from && to
+        ? navStepsForSimple(simpleRoute, from, to)
+        : []
+    : [];
+  const navAtEnd = navSteps.length > 0 && navIndex === navSteps.length - 1;
+  const navDistance =
+    navSteps.length > 0 ? metersTo(userFix, navSteps[navIndex].target) : null;
+
+  // Guidance only ever moves forward — a momentary closeness to an earlier
+  // stage (waiting at a junction) never snaps the checklist back. The trip
+  // latches as started once GPS sees you near the first target, or plainly
+  // closer to a later one (you're already under way).
+  useEffect(() => {
+    if (!navigating || !userFix || navSteps.length === 0) return;
+    let nearest = 0;
+    let nearestD = Infinity;
+    navSteps.forEach((s, i) => {
+      const d = haversine(userFix, s.target);
+      if (d < nearestD) {
+        nearestD = d;
+        nearest = i;
+      }
+    });
+    if (nearest > navIndex) setNavIndex(nearest);
+    if (!navStarted && (nearest > 0 || haversine(userFix, navSteps[0].target) <= NAV_START_M)) {
+      setNavStarted(true);
+    }
+  }, [navigating, userFix, navSteps, navIndex, navStarted]);
+
+  const arrived =
+    navSteps.length > 0 &&
+    ((navStarted && navAtEnd && navDistance !== null && navDistance <= NAV_ARRIVE_M) ||
+      navArrived);
 
   const stretchNote =
     result && (result.stretchedOrigin || result.stretchedDestination)
@@ -265,21 +385,60 @@ export function JourneyPage() {
 
       <div className="tk-journey__map">
         <JourneyMap
-          journey={journey}
+          journey={displayJourney}
           direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
           buildings={buildings3d}
           onMapClick={() => {
-            if (isMobile && (journey !== null || simpleRoute !== null)) {
+            if (isMobile && !navigating && (journey !== null || simpleRoute !== null)) {
               setMapFocus(true);
               // re-expanding lands on the resting folded search pill
               setSearchOpen(false);
             }
           }}
+          userFix={userFix}
+          navActive={navigating}
+          followUser={followUser}
+          onUserPan={() => setFollowUser(false)}
+          refitKey={navEpoch}
         />
+        {navigating && !followUser && userFix !== null && (
+          <button
+            type="button"
+            className="tk-pillbtn tk-recenter"
+            onClick={() => setFollowUser(true)}
+          >
+            <CurrentLocationIcon size={15} />
+            <span>Recenter</span>
+          </button>
+        )}
       </div>
 
-      <div className={`tk-journey__panel${collapsed ? " tk-mapfocus" : ""}`}>
-        {collapsed ? (
+      <div
+        className={`tk-journey__panel${collapsed ? " tk-mapfocus" : ""}${
+          navigating ? " tk-navmode" : ""
+        }`}
+      >
+        {navigating ? (
+          <NavCard
+            steps={navSteps}
+            index={navIndex}
+            fix={userFix}
+            status={locateStatus}
+            started={navStarted}
+            arrived={arrived}
+            directMode={simpleRoute?.mode ?? null}
+            onExit={exitNavigation}
+            onNext={() => {
+              if (!navStarted) {
+                setNavStarted(true);
+                return;
+              }
+              if (navAtEnd) setNavArrived(true);
+              else setNavIndex((i) => Math.min(i + 1, navSteps.length - 1));
+            }}
+            onStartAnyway={() => setNavStarted(true)}
+          />
+        ) : collapsed ? (
           <>
             <button
               type="button"
@@ -398,10 +557,25 @@ export function JourneyPage() {
           </div>
         )}
 
-        {detail}
+        {!navigating && detail}
           </>
         )}
       </div>
+
+      {navigating && arrived && (
+        <div className="tk-arrived">
+          <div className="tk-arrived__card">
+            <p className="tk-arrived__title">You have arrived</p>
+            <p className="tk-arrived__sub">
+              Welcome to{" "}
+              {navSteps.length > 0 ? navSteps[navSteps.length - 1].target.name : to?.name}.
+            </p>
+            <button className="tk-go" onClick={exitNavigation}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -514,9 +688,22 @@ function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function TaxiDetail({ journey, onBack }: { journey: Journey; onBack: () => void }) {
-  // A "0 m walk" step is pure noise when the stage sits on the spot.
-  const legs = journey.legs.filter((l) => !(l.kind === "walk" && l.meters < 30));
+function TaxiDetail({
+  journey,
+  onToggleSwap,
+  onStart,
+  onBack,
+}: {
+  journey: Journey;
+  onToggleSwap: (legIndex: number) => void;
+  onStart: () => void;
+  onBack: () => void;
+}) {
+  // A "0 m walk" step is pure noise when the stage sits on the spot — but
+  // steps keep their original leg index so swaps target the right leg.
+  const steps = journey.legs
+    .map((leg, idx) => ({ leg, idx }))
+    .filter(({ leg }) => !(leg.kind === "walk" && leg.meters < 30));
   return (
     <div className="tk-journey__detail">
       <BackButton onClick={onBack} />
@@ -528,10 +715,21 @@ function TaxiDetail({ journey, onBack }: { journey: Journey; onBack: () => void 
         </span>
       </div>
       <ol className="tk-steps">
-        {legs.map((leg, i) => (
-          <Step key={i} leg={leg} />
+        {steps.map(({ leg, idx }) => (
+          <Step
+            key={idx}
+            leg={leg}
+            legIndex={idx}
+            swappable={leg.kind === "walk" && leg.meters >= BODA_SWAP_M}
+            onToggleSwap={onToggleSwap}
+          />
         ))}
       </ol>
+      <div className="tk-detail__actions">
+        <button className="tk-go" onClick={onStart}>
+          Start trip
+        </button>
+      </div>
       <p className="tk-card__note">
         Times are typical estimates from 2019/20 fieldwork; matatus leave
         when full, so verify fares on the ground.
@@ -557,11 +755,13 @@ function SimpleDetail({
   route,
   from,
   to,
+  onStart,
   onBack,
 }: {
   route: SimpleRoute;
   from: Place;
   to: Place;
+  onStart: () => void;
   onBack: () => void;
 }) {
   const steps: ReactNode[] = [];
@@ -631,13 +831,53 @@ function SimpleDetail({
         <p>{route.note}</p>
         {route.advice && <p>{route.advice}</p>}
       </div>
+      <div className="tk-detail__actions">
+        <button className="tk-go" onClick={onStart}>
+          Start trip
+        </button>
+      </div>
     </div>
   );
 }
 
-function Step({ leg }: { leg: Leg }) {
+function Step({
+  leg,
+  legIndex,
+  swappable,
+  onToggleSwap,
+}: {
+  leg: Leg;
+  legIndex: number;
+  swappable: boolean;
+  onToggleSwap: (legIndex: number) => void;
+}) {
+  if (leg.kind === "boda") {
+    return (
+      <li className="tk-step tk-step--boda">
+        <span className="tk-step__badge tk-step__badge--boda">
+          <MotorbikeIcon size={12} /> boda
+        </span>
+        <div className="tk-step__body">
+          Ride a boda {Math.round(leg.meters)} m (~{leg.minutes} min) to{" "}
+          <strong>{leg.to.name}</strong>
+          <div className="tk-step__meta">
+            <span>≈ {formatUgxRange(leg.fareMin, leg.fareMax)}</span>
+            <span>agree before you set off</span>
+          </div>
+          <button
+            type="button"
+            className="tk-step__swap tk-step__swap--revert"
+            onClick={() => onToggleSwap(legIndex)}
+          >
+            <WalkIcon size={13} /> Walk instead
+          </button>
+        </div>
+      </li>
+    );
+  }
+
   if (leg.kind === "walk") {
-    const boda = leg.meters > BODA_SUGGEST_M ? estimateBoda(leg.meters) : null;
+    const boda = swappable ? estimateBoda(leg.meters) : null;
     return (
       <li className="tk-step tk-step--walk">
         <span className="tk-step__badge tk-step__badge--walk">
@@ -648,10 +888,14 @@ function Step({ leg }: { leg: Leg }) {
           {Math.max(1, Math.round(leg.minutes))} min) to{" "}
           <strong>{leg.to.name}</strong>
           {boda && (
-            <div className="tk-step__boda">
+            <button
+              type="button"
+              className="tk-step__swap"
+              onClick={() => onToggleSwap(legIndex)}
+            >
               Too far to walk? A boda is ≈ {formatUgxRange(boda.min, boda.max)}{" "}
-              (~{Math.max(2, Math.round(leg.meters / 250))} min).
-            </div>
+              (~{bodaMinutes(leg.meters)} min)
+            </button>
           )}
         </div>
       </li>
@@ -683,5 +927,158 @@ function Step({ leg }: { leg: Leg }) {
         </div>
       </div>
     </li>
+  );
+}
+
+function navBadgeIcon(step: NavStep, directMode: SimpleMode | null): ReactNode {
+  switch (step.kind) {
+    case "walk":
+      return (
+        <>
+          <WalkIcon size={12} /> walk
+        </>
+      );
+    case "boda":
+      return (
+        <>
+          <MotorbikeIcon size={12} /> boda
+        </>
+      );
+    case "board":
+    case "ride":
+      return (
+        <>
+          <BusIcon size={12} /> matatu
+        </>
+      );
+    case "direct":
+      return simpleIcon(directMode ?? "walk", 12);
+  }
+}
+
+/**
+ * The live-guidance card: one checkpoint at a time, the straight-line
+ * distance to its target, and a hand "Next" for when GPS is off or
+ * indecisive. Reads over the map with the same glass as the preview.
+ */
+function NavCard({
+  steps,
+  index,
+  fix,
+  status,
+  started,
+  arrived,
+  directMode,
+  onExit,
+  onNext,
+  onStartAnyway,
+}: {
+  steps: NavStep[];
+  index: number;
+  fix: { lat: number; lng: number } | null;
+  status: "idle" | "watching" | "denied" | "unavailable";
+  started: boolean;
+  arrived: boolean;
+  directMode: SimpleMode | null;
+  onExit: () => void;
+  onNext: () => void;
+  onStartAnyway: () => void;
+}) {
+  if (steps.length === 0) {
+    return (
+      <div className="tk-journey__detail tk-nav">
+        <BackButton onClick={onExit} />
+        <p className="tk-card__note">Nothing to guide on this route yet.</p>
+      </div>
+    );
+  }
+  const step = steps[index];
+  const last = index === steps.length - 1;
+  const dist = metersTo(fix, step.target);
+  const here = dist !== null && dist <= NAV_ARRIVE_M;
+  const where =
+    here && step.target.name
+      ? "You are here"
+      : dist !== null
+        ? `${formatDistance(dist)} to ${step.target.name}`
+        : status === "denied"
+          ? "Location is off"
+          : "Finding you…";
+
+  return (
+    <div className="tk-journey__detail tk-nav" aria-live="polite">
+      <div className="tk-nav__top">
+        <span className="tk-nav__progress">
+          Step {index + 1} of {steps.length}
+        </span>
+        <button type="button" className="tk-back tk-nav__exit" onClick={onExit}>
+          <ArrowLeftIcon size={14} />
+          <span>Exit</span>
+        </button>
+      </div>
+
+      {arrived ? (
+        <p className="tk-nav__getthere">
+          Welcome to <strong>{step.target.name}</strong>
+        </p>
+      ) : !started ? (
+        <>
+          <p className="tk-nav__getthere">
+            Get to <strong>{steps[0].target.name}</strong> first
+          </p>
+          <p className="tk-nav__distance">
+            {dist !== null
+              ? `${formatDistance(dist)} away`
+              : status === "denied"
+                ? "Location is off"
+                : "Finding you…"}
+          </p>
+          <p className="tk-nav__hint">
+            {steps[0].title}.{" "}
+            {status === "denied"
+              ? "Location is off, so steps advance by hand."
+              : "Guidance starts once you are close."}
+          </p>
+          <div className="tk-nav__row">
+            <button className="tk-go" onClick={onStartAnyway}>
+              Start anyway
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <span
+            className={`tk-step__badge tk-step__badge--${
+              step.kind === "direct" ? "mode" : step.kind
+            } tk-nav__badge`}
+          >
+            {navBadgeIcon(step, directMode)}
+          </span>
+          <p className="tk-nav__title">{step.title}</p>
+          {step.detail && <p className="tk-nav__detail">{step.detail}</p>}
+          {step.meta.length > 0 && (
+            <div className="tk-step__meta">
+              {step.meta.map((m, i) => (
+                <span key={i}>{m}</span>
+              ))}
+            </div>
+          )}
+          <p className="tk-nav__distance">{where}</p>
+          {!last && steps[index + 1] && (
+            <p className="tk-nav__nextline">Then: {steps[index + 1].title}</p>
+          )}
+          <div className="tk-nav__row">
+            <button type="button" className="tk-back tk-nav__skip" onClick={onNext}>
+              {last ? "Arrived" : "Next"}
+            </button>
+          </div>
+        </>
+      )}
+      <p className="tk-nav__footnote">
+        {status === "denied"
+          ? "Location permission is off, so steps advance by hand."
+          : "Distances are straight-line GPS estimates."}
+      </p>
+    </div>
   );
 }

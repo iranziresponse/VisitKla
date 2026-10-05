@@ -99,8 +99,8 @@ app modes; the transit plugin consumes them and never redefines them.
 - Text: `ink` primary, `ink-muted` secondary, `ink-faint` tertiary/meta.
 - Accent: `signal-orange` for the primary action, fastest badge, selected
   route geometry, and alight markers. Never used as large fills.
-- Semantic: `semantic-green` marks boarding points and the user's start;
-  it is never decoration.
+- Semantic: `semantic-green` marks boarding points, the user's start, and
+  boda link legs (the map line and the swap chip); it is never decoration.
 - Hairline `#332f29` is the only border color on dark surfaces.
 
 ## Typography
@@ -163,6 +163,11 @@ authored, never browser-default:
 - Text links rest as underlined ink and tint orange on hover.
 - Buttons and links keep the global 2px `:focus-visible` outline;
   `prefers-reduced-motion` freezes all transitions.
+- Guidance states: approach (destination, distance, Start anyway),
+  guiding (checkpoint + distance + Next), arrived (overlay + Done), and
+  location-off (stated inline — the Next button becomes the mechanism).
+  Step changes announce through `aria-live=polite`; distances are labeled
+  straight-line GPS estimates.
 
 ## Shapes
 
@@ -193,6 +198,24 @@ step uses a dashed border to feel provisional.
 - Back chip (in the step detail): Tabler arrow-left + "All routes" in a
   32px-min-height pill with the raised glass surface; hovers to the
   orange tint.
+- Boda swap chip (in walk steps): a walk long enough to dread (about 12
+  minutes or more) offers the ride instead — one green-edged chip pricing
+  the boda as a range with minutes. Tapping swaps the leg: the step
+  becomes a green boda badge with the fare and an "agree before you set
+  off" line, the map draws the leg as a green street-following line, and
+  the journey total shrinks. A quiet raised "Walk instead" chip reverts.
+- Start trip (in the step detail): one full-width orange action closing
+  the preview; it hands the same journey (swaps included) to live
+  guidance.
+- Guidance card (live navigation): a compact glass card — never the
+  preview's tall scroll region. Progress chip + Exit on top, then the
+  current checkpoint (badge, instruction, straight-line distance in
+  burnt sienna), a "Then:" preview of the next checkpoint, and a manual
+  Next for when GPS is off. Before the first target it shows the
+  approach state: "Get to X first", the distance, and Start anyway. At
+  the last target an arrived overlay (You have arrived + Done) covers
+  the map. The orange puck rides the followed camera; dragging the map
+  yields control and floats a Recenter chip to take it back.
 - Collapsed pills (mobile map-focus): with a route open, a map tap
   swaps the cards for two 44px full-width glass pills — the trip at the
   top, the selected route's summary plus a chevron at the bottom.
