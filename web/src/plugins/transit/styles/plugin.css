@@ -1006,6 +1006,13 @@
   color: var(--color-muted-2);
 }
 
+.tk-step__badge--boda {
+  background: rgba(22, 163, 74, 0.18);
+  border: 1.5px solid rgba(22, 163, 74, 0.55);
+  /* deep green keeps 4.5:1 over the green tint on deep glass */
+  color: #082e18;
+}
+
 .tk-step__badge--mode {
   background: var(--color-card-raised);
   border: 1px solid var(--color-border);
@@ -1033,14 +1040,54 @@
   font-size: 12px;
 }
 
-.tk-step__boda {
-  margin-top: 6px;
-  padding: 6px 9px;
+/* The swap action: a walk too long to enjoy turns into a boda ride (and
+   back). Green edge = the boda color on the map, so option and result
+   read as one thing. */
+.tk-step__swap {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 11px;
   border-radius: 8px;
-  background: rgba(22, 163, 74, 0.16);
-  /* deep green keeps 4.5:1 over the green tint on deep glass */
+  border: 1px solid rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.14);
   color: #082e18;
   font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.tk-step__swap:hover,
+.tk-step__swap:focus-visible {
+  background: rgba(22, 163, 74, 0.24);
+  border-color: rgba(22, 163, 74, 0.7);
+  transform: translateY(-1px);
+}
+
+.tk-step__swap:active {
+  transform: translateY(0);
+}
+
+.tk-step__swap--revert {
+  min-height: 36px;
+  border-color: var(--color-border);
+  background: var(--color-card-raised);
+  color: var(--color-muted);
+}
+
+.tk-step__swap--revert:hover,
+.tk-step__swap--revert:focus-visible {
+  background: var(--color-orange-bg);
+  border-color: var(--color-orange-border);
+  color: var(--color-orange);
 }
 
 .tk-journey__report {

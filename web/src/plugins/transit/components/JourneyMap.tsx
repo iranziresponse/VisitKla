@@ -12,6 +12,7 @@ import "./JourneyMap.css";
 const TAXI_COLOR = "#ff6b00";
 const BUS_COLOR = "#38bdf8";
 const WALK_COLOR = "#f6efe4";
+const BODA_COLOR = "#16a34a";
 const CASING_COLOR = "#14120f";
 
 /** Same tilted camera language as the classic app's maps. */
@@ -52,13 +53,18 @@ export interface DirectRoute {
   mode: SimpleMode;
 }
 
-function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
+function journeyFeatures(
+  journey: Journey,
+  walkPaths: Map<number, LngLat[]>,
+  bodaPaths: Map<number, LngLat[]>
+) {
   const walk: GeoJSON.Feature[] = [];
+  const boda: GeoJSON.Feature[] = [];
   const ride: GeoJSON.Feature[] = [];
   const stages: GeoJSON.Feature[] = [];
 
   let walkIdx = 0;
-  for (const leg of journey.legs) {
+  journey.legs.forEach((leg, legIdx) => {
     if (leg.kind === "walk") {
       const id = walkIdx++;
       // Straight pair until (unless) the street path arrives — the async
@@ -70,6 +76,20 @@ function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
           [leg.to.lng, leg.to.lat],
         ];
       walk.push({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: coords },
+      });
+    } else if (leg.kind === "boda") {
+      // A swapped boda link rides the streets too (car profile is the
+      // keyless proxy for a motorbike) — straight until upgraded.
+      const coords: LngLat[] =
+        bodaPaths.get(legIdx) ??
+        [
+          [leg.from.lng, leg.from.lat],
+          [leg.to.lng, leg.to.lat],
+        ];
+      boda.push({
         type: "Feature",
         properties: {},
         geometry: { type: "LineString", coordinates: coords },
@@ -105,8 +125,8 @@ function journeyFeatures(journey: Journey, walkPaths: Map<number, LngLat[]>) {
         }
       );
     }
-  }
-  return { walk, ride, stages };
+  });
+  return { walk, boda, ride, stages };
 }
 
 function directFeatures(direct: DirectRoute) {
@@ -172,6 +192,8 @@ export function JourneyMap({
   const routeToken = useRef(0);
   // Street paths for the current journey's walk legs, by walk-leg order.
   const walkPaths = useRef<Map<number, LngLat[]>>(new Map());
+  // Same for swapped boda legs, by leg index (car profile = motorbike proxy).
+  const bodaPaths = useRef<Map<number, LngLat[]>>(new Map());
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -207,6 +229,7 @@ export function JourneyMap({
         const m = mapRef.current;
         if (!m || cancelled) return;
         m.addSource("tk-walk", { type: "geojson", data: EMPTY });
+        m.addSource("tk-boda", { type: "geojson", data: EMPTY });
         m.addSource("tk-ride", { type: "geojson", data: EMPTY });
         m.addSource("tk-stages", { type: "geojson", data: EMPTY });
         m.addSource("tk-direct", { type: "geojson", data: EMPTY });
@@ -231,6 +254,25 @@ export function JourneyMap({
             "line-width": 2.6,
             "line-dasharray": [1.1, 1.9],
             "line-opacity": 0.92,
+          },
+        });
+        m.addLayer({
+          id: "boda-casing",
+          type: "line",
+          source: "tk-boda",
+          paint: {
+            "line-color": CASING_COLOR,
+            "line-width": 8,
+            "line-opacity": 0.85,
+          },
+        });
+        m.addLayer({
+          id: "boda",
+          type: "line",
+          source: "tk-boda",
+          paint: {
+            "line-color": BODA_COLOR,
+            "line-width": 4.5,
           },
         });
         m.addLayer({
@@ -329,6 +371,7 @@ export function JourneyMap({
 
     const clearJourney = () => {
       src("tk-walk")?.setData(EMPTY);
+      src("tk-boda")?.setData(EMPTY);
       src("tk-ride")?.setData(EMPTY);
       src("tk-stages")?.setData(EMPTY);
     };
@@ -347,10 +390,12 @@ export function JourneyMap({
     if (journey) {
       clearDirect();
       walkPaths.current = new Map();
+      bodaPaths.current = new Map();
       const redraw = () => {
         if (token !== routeToken.current) return;
-        const f = journeyFeatures(journey, walkPaths.current);
+        const f = journeyFeatures(journey, walkPaths.current, bodaPaths.current);
         src("tk-walk")?.setData({ type: "FeatureCollection", features: f.walk });
+        src("tk-boda")?.setData({ type: "FeatureCollection", features: f.boda });
         src("tk-ride")?.setData({ type: "FeatureCollection", features: f.ride });
         src("tk-stages")?.setData({ type: "FeatureCollection", features: f.stages });
       };
@@ -359,11 +404,11 @@ export function JourneyMap({
         const lons: number[] = [];
         const lats: number[] = [];
         for (const leg of journey.legs) {
-          const a = leg.kind === "walk" ? leg.from : stopByIndex(leg.stopIdxs[0]);
+          const a = leg.kind === "ride" ? stopByIndex(leg.stopIdxs[0]) : leg.from;
           const b =
-            leg.kind === "walk"
-              ? leg.to
-              : stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1]);
+            leg.kind === "ride"
+              ? stopByIndex(leg.stopIdxs[leg.stopIdxs.length - 1])
+              : leg.to;
           lons.push(a.lng, b.lng);
           lats.push(a.lat, b.lat);
         }
@@ -380,20 +425,31 @@ export function JourneyMap({
 
       // Upgrade each walk leg's dashed line from straight to the actual
       // street path. Camera stays put — short walks can at most poke a
-      // little past the stop-based bounds.
+      // little past the stop-based bounds. Swapped boda legs upgrade to
+      // the car-profile street path the same way, in green.
       let walkIdx = 0;
-      for (const leg of journey.legs) {
-        if (leg.kind !== "walk") continue;
-        const id = walkIdx++;
-        roadPath("pedestrian", [
-          [leg.from.lng, leg.from.lat],
-          [leg.to.lng, leg.to.lat],
-        ]).then((path) => {
-          if (!path || token !== routeToken.current) return;
-          walkPaths.current.set(id, path);
-          redraw();
-        });
-      }
+      journey.legs.forEach((leg, legIdx) => {
+        if (leg.kind === "walk") {
+          const id = walkIdx++;
+          roadPath("pedestrian", [
+            [leg.from.lng, leg.from.lat],
+            [leg.to.lng, leg.to.lat],
+          ]).then((path) => {
+            if (!path || token !== routeToken.current) return;
+            walkPaths.current.set(id, path);
+            redraw();
+          });
+        } else if (leg.kind === "boda") {
+          roadPath("car", [
+            [leg.from.lng, leg.from.lat],
+            [leg.to.lng, leg.to.lat],
+          ]).then((path) => {
+            if (!path || token !== routeToken.current) return;
+            bodaPaths.current.set(legIdx, path);
+            redraw();
+          });
+        }
+      });
       return;
     }
 

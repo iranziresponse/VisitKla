@@ -57,7 +57,23 @@ export interface RideLeg {
   fare: number;
 }
 
-export type Leg = WalkLeg | RideLeg;
+/**
+ * A walk leg the rider chose to ride by boda instead (the swap lives in
+ * boda.ts — this is just the shape). The fare is a draft range, never a
+ * quote; minutes use the same effective door-to-door speed as the boda
+ * mode elsewhere in the plugin.
+ */
+export interface BodaLeg {
+  kind: "boda";
+  from: Place;
+  to: Place;
+  meters: number;
+  minutes: number;
+  fareMin: number;
+  fareMax: number;
+}
+
+export type Leg = WalkLeg | RideLeg | BodaLeg;
 
 export interface Journey {
   legs: Leg[];

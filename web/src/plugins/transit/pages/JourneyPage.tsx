@@ -22,7 +22,12 @@ import {
   stopByIndex,
   variantEndpoints,
 } from "../lib/network";
-import { BODA_SUGGEST_M, estimateBoda } from "../lib/boda";
+import {
+  BODA_SWAP_M,
+  bodaMinutes,
+  estimateBoda,
+  journeyWithBodaSwaps,
+} from "../lib/boda";
 import { estimateAllSimple, type SimpleMode, type SimpleRoute } from "../lib/modes";
 import {
   haversine,
@@ -142,6 +147,9 @@ export function JourneyPage() {
   } | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [simpleSelected, setSimpleSelected] = useState<SimpleMode | null>(null);
+  // Walk legs the rider chose to ride by boda instead, by leg index into
+  // the selected journey. Resets with every new selection.
+  const [bodaSwaps, setBodaSwaps] = useState<ReadonlySet<number>>(new Set());
   const [buildings3d, setBuildings3d] = useState(false);
   // Mobile map-focus: with a route open, tapping the map collapses the
   // floating cards into two thin pills; tapping either restores them.
@@ -193,6 +201,7 @@ export function JourneyPage() {
     setResult(null);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
   }
 
   function clearTo() {
@@ -200,6 +209,16 @@ export function JourneyPage() {
     setResult(null);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
+  }
+
+  function toggleBodaSwap(idx: number) {
+    setBodaSwaps((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
   }
 
   function search() {
@@ -207,6 +226,7 @@ export function JourneyPage() {
     setPending(true);
     setSelected(null);
     setSimpleSelected(null);
+    setBodaSwaps(new Set());
     setMapFocus(false);
     // let the pending state paint before the synchronous compute
     window.setTimeout(() => {
@@ -236,15 +256,27 @@ export function JourneyPage() {
   const collapsed = mapFocus && isMobile && (journey !== null || simpleRoute !== null);
   // The form itself is the resting-folded element on phones; desktop never folds.
   const formOpen = !isMobile || searchOpen;
+  // What the map and steps actually draw: the selected journey with any
+  // chosen walk legs replaced by their boda rides.
+  const displayJourney = journey ? journeyWithBodaSwaps(journey, bodaSwaps) : null;
   function openRoute(open: () => void) {
     open();
+    setBodaSwaps(new Set());
     setMapFocus(false);
   }
-  const detail = journey ? (
-    <TaxiDetail journey={journey} onBack={() => setSelected(null)} />
-  ) : simpleRoute && from && to ? (
-    <SimpleDetail route={simpleRoute} from={from} to={to} onBack={() => setSimpleSelected(null)} />
-  ) : null;
+  const detail =
+    journey && displayJourney ? (
+      <TaxiDetail
+        journey={displayJourney}
+        onToggleSwap={toggleBodaSwap}
+        onBack={() => {
+          setSelected(null);
+          setBodaSwaps(new Set());
+        }}
+      />
+    ) : simpleRoute && from && to ? (
+      <SimpleDetail route={simpleRoute} from={from} to={to} onBack={() => setSimpleSelected(null)} />
+    ) : null;
 
   const stretchNote =
     result && (result.stretchedOrigin || result.stretchedDestination)
@@ -265,7 +297,7 @@ export function JourneyPage() {
 
       <div className="tk-journey__map">
         <JourneyMap
-          journey={journey}
+          journey={displayJourney}
           direct={simpleRoute ? { from: from!, to: to!, mode: simpleRoute.mode } : null}
           buildings={buildings3d}
           onMapClick={() => {
@@ -514,9 +546,20 @@ function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function TaxiDetail({ journey, onBack }: { journey: Journey; onBack: () => void }) {
-  // A "0 m walk" step is pure noise when the stage sits on the spot.
-  const legs = journey.legs.filter((l) => !(l.kind === "walk" && l.meters < 30));
+function TaxiDetail({
+  journey,
+  onToggleSwap,
+  onBack,
+}: {
+  journey: Journey;
+  onToggleSwap: (legIndex: number) => void;
+  onBack: () => void;
+}) {
+  // A "0 m walk" step is pure noise when the stage sits on the spot — but
+  // steps keep their original leg index so swaps target the right leg.
+  const steps = journey.legs
+    .map((leg, idx) => ({ leg, idx }))
+    .filter(({ leg }) => !(leg.kind === "walk" && leg.meters < 30));
   return (
     <div className="tk-journey__detail">
       <BackButton onClick={onBack} />
@@ -528,8 +571,14 @@ function TaxiDetail({ journey, onBack }: { journey: Journey; onBack: () => void 
         </span>
       </div>
       <ol className="tk-steps">
-        {legs.map((leg, i) => (
-          <Step key={i} leg={leg} />
+        {steps.map(({ leg, idx }) => (
+          <Step
+            key={idx}
+            leg={leg}
+            legIndex={idx}
+            swappable={leg.kind === "walk" && leg.meters >= BODA_SWAP_M}
+            onToggleSwap={onToggleSwap}
+          />
         ))}
       </ol>
       <p className="tk-card__note">
@@ -635,9 +684,44 @@ function SimpleDetail({
   );
 }
 
-function Step({ leg }: { leg: Leg }) {
+function Step({
+  leg,
+  legIndex,
+  swappable,
+  onToggleSwap,
+}: {
+  leg: Leg;
+  legIndex: number;
+  swappable: boolean;
+  onToggleSwap: (legIndex: number) => void;
+}) {
+  if (leg.kind === "boda") {
+    return (
+      <li className="tk-step tk-step--boda">
+        <span className="tk-step__badge tk-step__badge--boda">
+          <MotorbikeIcon size={12} /> boda
+        </span>
+        <div className="tk-step__body">
+          Ride a boda {Math.round(leg.meters)} m (~{leg.minutes} min) to{" "}
+          <strong>{leg.to.name}</strong>
+          <div className="tk-step__meta">
+            <span>≈ {formatUgxRange(leg.fareMin, leg.fareMax)}</span>
+            <span>agree before you set off</span>
+          </div>
+          <button
+            type="button"
+            className="tk-step__swap tk-step__swap--revert"
+            onClick={() => onToggleSwap(legIndex)}
+          >
+            <WalkIcon size={13} /> Walk instead
+          </button>
+        </div>
+      </li>
+    );
+  }
+
   if (leg.kind === "walk") {
-    const boda = leg.meters > BODA_SUGGEST_M ? estimateBoda(leg.meters) : null;
+    const boda = swappable ? estimateBoda(leg.meters) : null;
     return (
       <li className="tk-step tk-step--walk">
         <span className="tk-step__badge tk-step__badge--walk">
@@ -648,10 +732,14 @@ function Step({ leg }: { leg: Leg }) {
           {Math.max(1, Math.round(leg.minutes))} min) to{" "}
           <strong>{leg.to.name}</strong>
           {boda && (
-            <div className="tk-step__boda">
+            <button
+              type="button"
+              className="tk-step__swap"
+              onClick={() => onToggleSwap(legIndex)}
+            >
               Too far to walk? A boda is ≈ {formatUgxRange(boda.min, boda.max)}{" "}
-              (~{Math.max(2, Math.round(leg.meters / 250))} min).
-            </div>
+              (~{bodaMinutes(leg.meters)} min)
+            </button>
           )}
         </div>
       </li>
