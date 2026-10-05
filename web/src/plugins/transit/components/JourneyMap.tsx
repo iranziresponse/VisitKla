@@ -7,6 +7,7 @@ import type { SimpleMode } from "../lib/modes";
 // Same photoreal basemap as the classic app's maps (read-only import).
 import { buildRideStyle } from "../../../lib/rideStyle";
 import type { Journey, Place } from "../lib/planner";
+import type { UserFix } from "../hooks/useLocationWatch";
 import "./JourneyMap.css";
 
 const TAXI_COLOR = "#ff6b00";
@@ -170,6 +171,11 @@ export function JourneyMap({
   direct,
   buildings = false,
   onMapClick,
+  userFix = null,
+  followUser = false,
+  navActive = false,
+  onUserPan,
+  refitKey = 0,
 }: {
   journey: Journey | null;
   direct?: DirectRoute | null;
@@ -177,16 +183,29 @@ export function JourneyMap({
   buildings?: boolean;
   /** Fired on a genuine map tap (maplibre's click — drags don't count). */
   onMapClick?: () => void;
+  /** Live position fix; drawn as the orange puck when present. */
+  userFix?: UserFix | null;
+  /** While navigating: keep the camera centered on the puck. */
+  followUser?: boolean;
+  navActive?: boolean;
+  /** The user dragged/rotated the map — follow mode should yield. */
+  onUserPan?: () => void;
+  /** Bump to re-frame the drawn route (e.g. after leaving navigation). */
+  refitKey?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
   // Latest tap handler — the map binds "click" once at mount.
   const mapClickRef = useRef<(() => void) | null>(null);
+  const userPanRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     mapClickRef.current = onMapClick ?? null;
   }, [onMapClick]);
+  useEffect(() => {
+    userPanRef.current = onUserPan ?? null;
+  }, [onUserPan]);
   // Selection epoch — async street-path upgrades check it before drawing,
   // so an answer that lands after the user picked something else is dropped.
   const routeToken = useRef(0);
@@ -218,6 +237,9 @@ export function JourneyMap({
       });
       mapRef.current = map;
       map.on("click", () => mapClickRef.current?.());
+      // Real user gestures only — programmatic easeTo never fires these.
+      map.on("dragstart", () => userPanRef.current?.());
+      map.on("rotatestart", () => userPanRef.current?.());
       map.addControl(
         new maplibregl.AttributionControl({
           customAttribution:
@@ -234,6 +256,7 @@ export function JourneyMap({
         m.addSource("tk-stages", { type: "geojson", data: EMPTY });
         m.addSource("tk-direct", { type: "geojson", data: EMPTY });
         m.addSource("tk-direct-ends", { type: "geojson", data: EMPTY });
+        m.addSource("tk-user", { type: "geojson", data: EMPTY });
 
         m.addLayer({
           id: "walk-casing",
@@ -303,6 +326,17 @@ export function JourneyMap({
             "circle-color": ["match", ["get", "kind"], "board", "#16a34a", "#ff6b00"],
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
+          },
+        });
+        m.addLayer({
+          id: "user",
+          type: "circle",
+          source: "tk-user",
+          paint: {
+            "circle-radius": 7,
+            "circle-color": "#ff6b00",
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 2.5,
           },
         });
         m.addLayer({
@@ -488,7 +522,42 @@ export function JourneyMap({
         { padding: 90, duration: 700, maxZoom: 15.5 }
       );
     });
-  }, [journey, direct, ready]);
+  }, [journey, direct, ready, refitKey]);
+
+  // The live puck — only ever fed while navigation is running.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const src = map.getSource("tk-user");
+    if (!src) return;
+    (src as GeoJSONSource).setData(
+      userFix
+        ? {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: {},
+                geometry: { type: "Point", coordinates: [userFix.lng, userFix.lat] },
+              },
+            ],
+          }
+        : EMPTY
+    );
+  }, [userFix, ready]);
+
+  // Follow mode: keep the puck centered. The zoom floor kicks in on the
+  // first fix so guidance reads at street scale; later fixes keep the
+  // user's own zoom.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !navActive || !followUser || !userFix) return;
+    map.easeTo({
+      center: [userFix.lng, userFix.lat],
+      zoom: Math.max(map.getZoom(), 15.8),
+      duration: 800,
+    });
+  }, [navActive, followUser, userFix?.lat, userFix?.lng, ready]);
 
   // 3D blocks toggle — a pure visibility flip, no style rebuild.
   useEffect(() => {
