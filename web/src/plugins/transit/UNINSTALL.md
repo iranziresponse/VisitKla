@@ -65,5 +65,9 @@ classic app (`web/src/App.tsx`) through clearly marked blocks.
   `<head>` by `lib/favicon.ts`, imported from `ModeToggle.tsx` so every
   page gets it). The friend's `index.html` is never touched; deleting the
   plugin simply leaves the site as it was — without a favicon, as before.
+- Live navigation uses the browser's own geolocation API through a
+  plugin-local hook (`hooks/useLocationWatch.ts`); it adds no external
+  calls and no permissions of its own — the browser asks the user, and
+  deleting the plugin removes the watcher with it.
 - If this file and the plugin are both present, these steps are canonical —
   they are kept up to date with every plugin change.
